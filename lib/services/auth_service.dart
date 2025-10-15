@@ -5,6 +5,48 @@ import '../models/user.dart';
 import 'auditoria_service.dart';
 
 class AuthService {
+  /// Cria um novo usuário com senha hasheada
+  static Future<bool> criarUsuario(String nome, String email, String senha) async {
+    try {
+      final db = await DatabaseHelper.instance.database;
+      
+      // Verificar se email já existe
+      final existe = await db.query(
+        'usuarios',
+        where: 'email = ?',
+        whereArgs: [email],
+        limit: 1,
+      );
+
+      if (existe.isNotEmpty) {
+        throw Exception('Email já cadastrado');
+      }
+
+      // Gerar hash da senha
+      final hash = hashPassword(senha);
+
+      // Inserir novo usuário
+      await db.insert('usuarios', {
+        'nome': nome,
+        'email': email,
+        'hash': hash,
+        'tipo': 'usuario', // novos usuários são sempre do tipo 'usuario'
+        'failed_attempts': 0,
+        'last_failed_at': null,
+        'locked_until': null,
+      });
+
+      await AuditoriaService.registar(
+        acao: 'criar_usuario',
+        detalhe: 'Novo usuário criado: $email'
+      );
+
+      return true;
+    } catch (e) {
+      print('Erro ao criar usuário: $e');
+      throw Exception('Erro ao criar usuário: $e');
+    }
+  }
   /// Gera hash seguro para nova password (com sal e custo configurável)
   static String hashPassword(String senha, {int rounds = 12}) {
     try {
