@@ -277,9 +277,10 @@ flutter build windows --debug
 
 Este projeto está sob licença proprietária. Todos os direitos reservados.
 
-## 👨‍💻 Autor
+## 👨‍💻 Autores
 
-**Henrique Ferro** - [Ferro005](https://github.com/Ferro005)
+**Henrique Carvalho** - [Henryu1781](https://github.com/Henryu1781)
+**Gonçalo Ferro** - [Ferro005](https://github.com/Ferro005)
 
 ## 🔗 Links Úteis
 
