@@ -7,9 +7,14 @@ import 'auditoria_service.dart';
 class AuthService {
   /// Gera hash seguro para nova password (com sal e custo configurável)
   static String hashPassword(String senha, {int rounds = 12}) {
-    final salt = BCrypt.gensalt(rounds);
-    return BCrypt.hashpw(senha, salt);
-  }
+    try {
+        // BCrypt.gensalt() não aceita parâmetros na versão atual
+        final salt = BCrypt.gensalt();
+        return BCrypt.hashpw(senha, salt);
+    } catch (e) {
+        throw Exception('Erro ao gerar hash da senha: $e');
+    }
+}
 
   /// Tenta login com bloqueio temporário e logs de auditoria
   static Future<User?> login(String email, String senha) async {
