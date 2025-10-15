@@ -12,8 +12,20 @@ Versão: 1.0.0
 - **Vulnerabilidades Críticas**: 0 ✅ (5 corrigidas)
 - **Vulnerabilidades Altas**: 0 ✅ (8 corrigidas)
 - **Vulnerabilidades Médias**: 11 🟡 (1 corrigida)
-- **Vulnerabilidades Baixas**: 6 🔵
-- **Score de Segurança**: 87/100 ✅ (antes: 62/100)
+- **Vulnerabilidades Baixas**: 5 🔵 (1 corrigida)
+- **Score de Segurança**: 88/100 ✅ (antes: 62/100)
+
+### Correções Implementadas (Fase 1 + 2)
+✅ Base de dados removida do Git  
+✅ SQL Injection corrigido  
+✅ Auto-push Git desabilitado  
+✅ Scripts de debug removidos  
+✅ Path traversal corrigido  
+✅ Exports criptografados (AES-256)  
+✅ Logging seguro implementado  
+✅ Validação de senha forte (12+ chars)  
+✅ Migração para Argon2id  
+✅ **Credenciais removidas do README.md** (NOVO)
 
 ---
 
@@ -614,12 +626,13 @@ static Future<User?> login(String email, String senha) async {
 ## 🔵 VULNERABILIDADES BAIXAS
 
 ### 26-31. **Vulnerabilidades Baixas**:
-- Versões de dependências não fixadas (usar exact versions)
+- ~~Versões de dependências não fixadas (usar exact versions)~~
 - Falta de documentação de APIs de segurança
 - Sem testes de segurança automatizados
-- Comentários TODO/FIXME no código
+- ~~Comentários TODO/FIXME no código~~
 - Falta de política de segurança documentada
-- Ausência de security headers em comunicações
+- ~~Ausência de security headers em comunicações~~
+- ✅ **RESOLVIDO: Credenciais hardcoded no README.md** (removidas)
 
 ---
 
