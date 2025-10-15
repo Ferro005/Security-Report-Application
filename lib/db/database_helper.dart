@@ -21,8 +21,8 @@ class DatabaseHelper {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
 
-    final dir = await getApplicationDocumentsDirectory();
-    final path = join(dir.path, 'gestao_incidentes.db');
+    final userProfile = Platform.environment['USERPROFILE'];
+    final path = join(userProfile!, 'OneDrive', 'Documentos', 'gestao_incidentes.db');
 
     if (!File(path).existsSync()) {
       final data = await rootBundle.load('assets/db/gestao_incidentes.db');

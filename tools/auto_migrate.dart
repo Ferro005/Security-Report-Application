@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'package:sqlite3/sqlite3.dart';
+import 'package:path/path.dart' as path;
 
 String nowStamp() => DateTime.now().toIso8601String().replaceAll(':', '-');
 
 void main(List<String> args) {
-  final runtimePath = r'C:\Users\Henrique\OneDrive\Documentos\gestao_incidentes.db';
+  final userProfile = Platform.environment['USERPROFILE'] ?? '';
+  final runtimePath = path.join(userProfile, 'OneDrive', 'Documentos', 'gestao_incidentes.db');
   final packagedPath = 'assets/db/gestao_incidentes.db';
 
   if (!File(runtimePath).existsSync()) {
