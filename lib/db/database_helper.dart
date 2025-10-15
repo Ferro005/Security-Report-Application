@@ -105,8 +105,8 @@ class DatabaseHelper {
     }
     
     final db = await database;
-    // Use parameterized query for safety
-    final rows = await db.rawQuery("PRAGMA table_info(?)", [table]);
+    // PRAGMA doesn't support placeholders, but table name is validated via whitelist
+    final rows = await db.rawQuery("PRAGMA table_info('$table')");
     return rows.map((r) => r['name']?.toString() ?? '').where((s) => s.isNotEmpty).toList();
   }
 
