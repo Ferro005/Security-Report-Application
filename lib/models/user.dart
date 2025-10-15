@@ -19,16 +19,25 @@ class User {
     this.lockedUntil,
   });
 
-  factory User.fromMap(Map<String, dynamic> m) => User(
-        id: m['id'] as int,
-        nome: m['nome'] as String,
-        email: m['email'] as String,
-        hash: m['hash'] as String,              // agora mapeia a coluna nova
-        tipo: m['tipo'] as String,
-        failedAttempts: m['failed_attempts'] as int?,
-        lastFailedAt: m['last_failed_at'] as int?,
-        lockedUntil: m['locked_until'] as int?,
-      );
+factory User.fromMap(Map<String, dynamic> m) => User(
+      id: m['id'] is int ? m['id'] : int.tryParse(m['id']?.toString() ?? '0') ?? 0,
+      nome: m['nome']?.toString() ?? '',
+      email: m['email']?.toString() ?? '',
+  // Some DB dumps / older schemas use the column name 'senha' instead of 'hash'.
+  // Prefer 'hash' but fall back to 'senha' so existing databases don't break.
+  hash: m['hash']?.toString() ?? m['senha']?.toString() ?? '',
+      tipo: m['tipo']?.toString() ?? '',
+      failedAttempts: m['failed_attempts'] is int
+          ? m['failed_attempts']
+          : int.tryParse(m['failed_attempts']?.toString() ?? ''),
+      lastFailedAt: m['last_failed_at'] is int
+          ? m['last_failed_at']
+          : int.tryParse(m['last_failed_at']?.toString() ?? ''),
+      lockedUntil: m['locked_until'] is int
+          ? m['locked_until']
+          : int.tryParse(m['locked_until']?.toString() ?? ''),
+    );
+
 
   Map<String, dynamic> toMap() => {
         'id': id,
