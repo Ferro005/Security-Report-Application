@@ -1,22 +1,20 @@
+import 'dart:async';
 import 'package:bcrypt/bcrypt.dart';
 import '../db/database_helper.dart';
 import '../models/user.dart';
+import 'auditoria_service.dart';
 
 class AuthService {
-  /// Cria hash seguro para nova password
+  /// Gera hash seguro para nova password (com sal e custo configurável)
   static String hashPassword(String senha, {int rounds = 12}) {
-    try {
-        // BCrypt.gensalt() não aceita parâmetros na versão atual
-        final salt = BCrypt.gensalt();
-        return BCrypt.hashpw(senha, salt);
-    } catch (e) {
-        throw Exception('Erro ao gerar hash da senha: $e');
-    }
-}
+    final salt = BCrypt.gensalt(rounds);
+    return BCrypt.hashpw(senha, salt);
+  }
 
-  /// Verifica login com proteção de lockout
+  /// Tenta login com bloqueio temporário e logs de auditoria
   static Future<User?> login(String email, String senha) async {
     final db = await DatabaseHelper.instance.database;
+    final now = DateTime.now().millisecondsSinceEpoch;
 
     final rows = await db.query(
       'usuarios',
@@ -25,25 +23,29 @@ class AuthService {
       limit: 1,
     );
 
-    if (rows.isEmpty) return null;
+    if (rows.isEmpty) {
+      await AuditoriaService.registar(
+        acao: 'login_erro',
+        detalhe: 'Email não existente: $email',
+      );
+      await Future.delayed(const Duration(milliseconds: 200)); // anti-timing
+      return null;
+    }
+
     final user = User.fromMap(rows.first);
 
-    final now = DateTime.now().millisecondsSinceEpoch;
-
-    // bloqueio: se locked_until ainda está no futuro
+    // bloqueado?
     if (user.lockedUntil != null && user.lockedUntil! > now) {
-      throw Exception(
-          'A conta está temporariamente bloqueada. Tente mais tarde.');
+      throw Exception('Conta bloqueada. Tente novamente dentro de 30 segundos.');
     }
 
     final ok = BCrypt.checkpw(senha, user.hash);
+
     if (!ok) {
-      // incrementa tentativas falhadas
       final fails = (user.failedAttempts ?? 0) + 1;
 
       int? lockedUntil;
       if (fails >= 5) {
-        // bloqueia por 30 segundos
         lockedUntil = DateTime.now()
             .add(const Duration(seconds: 30))
             .millisecondsSinceEpoch;
@@ -60,6 +62,13 @@ class AuthService {
         whereArgs: [user.id],
       );
 
+      await AuditoriaService.registar(
+        acao: 'login_erro',
+        userId: user.id,
+        detalhe: 'Senha incorreta (tentativa $fails)',
+      );
+
+      await Future.delayed(const Duration(milliseconds: 200));
       return null;
     }
 
@@ -73,6 +82,11 @@ class AuthService {
       },
       where: 'id = ?',
       whereArgs: [user.id],
+    );
+
+    await AuditoriaService.registar(
+      acao: 'login_sucesso',
+      userId: user.id,
     );
 
     return user;
