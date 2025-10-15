@@ -52,6 +52,9 @@ class AuthService {
         detalhe: 'Novo usuário criado: $email'
       );
 
+      // Sincronizar com assets DB (apenas em modo debug)
+      await DatabaseHelper.instance.syncToAssets();
+
       return true;
     } catch (e) {
       print('Erro ao criar usuário: $e');

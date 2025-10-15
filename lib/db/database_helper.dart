@@ -93,4 +93,29 @@ class DatabaseHelper {
     final rows = await db.rawQuery("PRAGMA table_info('$table')");
     return rows.map((r) => r['name']?.toString() ?? '').where((s) => s.isNotEmpty).toList();
   }
+
+  /// Sync runtime database back to assets (development only)
+  /// Call this after creating/modifying users to update the packaged DB
+  Future<void> syncToAssets() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final runtimePath = join(dir.path, 'gestao_incidentes.db');
+      
+      // Only sync in debug mode
+      if (!const bool.fromEnvironment('dart.vm.product')) {
+        // Get project root (assuming we're in build output)
+        // This won't work in release builds, which is intentional
+        final projectRoot = Directory.current.path;
+        final assetsPath = join(projectRoot, 'assets', 'db', 'gestao_incidentes.db');
+        
+        if (File(runtimePath).existsSync()) {
+          await File(runtimePath).copy(assetsPath);
+          print('✓ Base de dados sincronizada com assets/db/');
+          print('  Lembrete: Faça commit e push das alterações!');
+        }
+      }
+    } catch (e) {
+      print('Aviso: Não foi possível sincronizar DB com assets: $e');
+    }
+  }
 }
