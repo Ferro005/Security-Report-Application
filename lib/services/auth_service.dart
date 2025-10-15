@@ -5,9 +5,14 @@ import '../models/user.dart';
 class AuthService {
   /// Cria hash seguro para nova password
   static String hashPassword(String senha, {int rounds = 12}) {
-    final salt = BCrypt.gensalt(rounds);
-    return BCrypt.hashpw(senha, salt);
-  }
+    try {
+        // BCrypt.gensalt() não aceita parâmetros na versão atual
+        final salt = BCrypt.gensalt();
+        return BCrypt.hashpw(senha, salt);
+    } catch (e) {
+        throw Exception('Erro ao gerar hash da senha: $e');
+    }
+}
 
   /// Verifica login com proteção de lockout
   static Future<User?> login(String email, String senha) async {
