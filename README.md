@@ -131,9 +131,8 @@ flutter build windows --release
 
 | Email | Password | Tipo | Descrição |
 |-------|----------|------|-----------|
-| `admin@gestao.com` | `Admin1234` | Administrador | Acesso total |
-| `joao@gestao.com` | `Admin1234` | Técnico | Gestão de incidentes |
-| `henrique@gestao.com` | `Admin1234` | Técnico | Gestão de incidentes |
+| `admin@exemplo.com` | `Admin1234` | Administrador | Acesso total |
+| `joao@exemplo.com` | `Admin1234` | Técnico | Gestão de incidentes |
 
 ### Segurança
 - ✅ Passwords protegidas com **BCrypt** (cost factor 10)
