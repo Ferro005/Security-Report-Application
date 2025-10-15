@@ -62,6 +62,8 @@ class _DetalhesIncidenteDialogState extends State<DetalhesIncidenteDialog> {
   @override
   Widget build(BuildContext context) {
     final isAdmin = widget.user.tipo == 'admin';
+    final isTecnico = widget.user.tipo == 'tecnico';
+    final canManageIncident = isAdmin || isTecnico;
 
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
@@ -80,8 +82,8 @@ class _DetalhesIncidenteDialogState extends State<DetalhesIncidenteDialog> {
                       style: const TextStyle(color: Colors.grey)),
                   const Divider(height: 20),
 
-                  // 🧭 Se for admin, pode mudar status/risco
-                  if (isAdmin) ...[
+                  // 🧭 Only admins and technicians can change status/risk
+                  if (canManageIncident) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -108,7 +110,7 @@ class _DetalhesIncidenteDialogState extends State<DetalhesIncidenteDialog> {
                     const Divider(height: 20),
                   ],
 
-                  // 💬 Comentários
+                  // 💬 Comentários (all users can comment)
                   Expanded(
                     child: ListView(
                       children: [

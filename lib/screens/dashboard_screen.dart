@@ -106,6 +106,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final isAdmin = widget.user.tipo == 'admin';
+    final isTecnico = widget.user.tipo == 'tecnico';
+    final canManageIncidents = isAdmin || isTecnico;
 
     return Scaffold(
       appBar: AppBar(
@@ -158,11 +160,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _mostrarSnack('📊 CSV exportado para: ${file.path}');
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            tooltip: 'Novo Incidente',
-            onPressed: _novoIncidente,
-          ),
+          // Only admins and technicians can create new incidents
+          if (canManageIncidents)
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline),
+              tooltip: 'Novo Incidente',
+              onPressed: _novoIncidente,
+            ),
           IconButton(
             icon: const Icon(Icons.power_settings_new),
             tooltip: 'Desligar Aplicação',
