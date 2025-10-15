@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/tecnicos_service.dart';
 import '../models/user.dart';
+import '../utils/validation_chains.dart';
 
 class TecnicosScreen extends StatefulWidget {
   final User user;
@@ -13,6 +14,7 @@ class TecnicosScreen extends StatefulWidget {
 class _TecnicosScreenState extends State<TecnicosScreen> {
   List<Map<String, dynamic>> tecnicos = [];
   bool loading = true;
+  final _formKey = GlobalKey<FormState>();
   final _nomeCtrl = TextEditingController();
   final _pesquisaCtrl = TextEditingController();
 
@@ -41,32 +43,48 @@ class _TecnicosScreenState extends State<TecnicosScreen> {
   }
 
   Future<void> _adicionar() async {
-    final nome = _nomeCtrl.text.trim();
-    if (nome.isEmpty) return;
+    if (!_formKey.currentState!.validate()) return;
+    
+    final nome = ValidationChains.nameSanitization.sanitize(_nomeCtrl.text) ?? '';
     await TecnicosService.adicionar(nome);
     _nomeCtrl.clear();
     _carregar();
   }
 
   Future<void> _editar(int id, String nomeAtual) async {
+    final formKey = GlobalKey<FormState>();
     final ctrl = TextEditingController(text: nomeAtual);
+    
     final novoNome = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Editar Técnico'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(labelText: 'Nome do técnico'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: ctrl,
+            decoration: const InputDecoration(labelText: 'Nome do técnico'),
+            validator: ValidationChains.nameValidation.validate,
+            autofocus: true,
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, ctrl.text), child: const Text('Guardar')),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(context, ctrl.text);
+              }
+            },
+            child: const Text('Guardar'),
+          ),
         ],
       ),
     );
 
-    if (novoNome != null && novoNome.trim().isNotEmpty) {
-      await TecnicosService.atualizar(id, novoNome.trim());
+    if (novoNome != null) {
+      final sanitized = ValidationChains.nameSanitization.sanitize(novoNome) ?? '';
+      await TecnicosService.atualizar(id, sanitized);
       _carregar();
     }
   }
@@ -127,24 +145,28 @@ class _TecnicosScreenState extends State<TecnicosScreen> {
                   const SizedBox(height: 12),
 
                   // ➕ Adicionar técnico
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _nomeCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Novo técnico',
-                            border: OutlineInputBorder(),
+                  Form(
+                    key: _formKey,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _nomeCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Novo técnico',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: ValidationChains.nameValidation.validate,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.add),
-                        label: const Text('Adicionar'),
-                        onPressed: _adicionar,
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.add),
+                          label: const Text('Adicionar'),
+                          onPressed: _adicionar,
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
 

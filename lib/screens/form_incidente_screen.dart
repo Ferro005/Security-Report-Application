@@ -3,6 +3,7 @@ import '../models/user.dart';
 import '../models/incidente.dart';
 import '../services/incidentes_service.dart';
 import '../services/tecnicos_service.dart';
+import '../utils/validation_chains.dart';
 
 class FormIncidenteScreen extends StatefulWidget {
   final User user;
@@ -51,9 +52,13 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
 
     setState(() => loading = true);
 
+    // Sanitizar dados antes de enviar
+    final titulo = ValidationChains.incidentDescriptionSanitization.sanitize(tituloCtrl.text) ?? '';
+    final descricao = ValidationChains.incidentDescriptionSanitization.sanitize(descCtrl.text) ?? '';
+
     final dados = {
-      'titulo': tituloCtrl.text.trim(),
-      'descricao': descCtrl.text.trim(),
+      'titulo': titulo,
+      'descricao': descricao,
       'categoria': categoriaSelecionada,
       'grau_risco': riscoSelecionado,
       'status': widget.incidente?.status ?? 'Pendente',
@@ -95,14 +100,16 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
                     TextFormField(
                       controller: tituloCtrl,
                       decoration: const InputDecoration(labelText: 'Título'),
-                      validator: (v) => v == null || v.isEmpty ? 'Título obrigatório' : null,
+                      validator: ValidationChains.incidentTitleValidation.validate,
+                      maxLength: 200,
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
                       controller: descCtrl,
                       maxLines: 3,
                       decoration: const InputDecoration(labelText: 'Descrição'),
-                      validator: (v) => v == null || v.isEmpty ? 'Descrição obrigatória' : null,
+                      validator: ValidationChains.incidentDescriptionValidation.validate,
+                      maxLength: 1000,
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(

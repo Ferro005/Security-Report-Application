@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../utils/validation_chains.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -10,16 +11,23 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final emailCtrl = TextEditingController();
   final senhaCtrl = TextEditingController();
   bool loading = false;
   String? erro;
 
   Future<void> _doLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+    
     setState(() => erro = null);
     setState(() => loading = true);
 
-    final user = await AuthService.login(emailCtrl.text.trim(), senhaCtrl.text);
+    // Sanitizar inputs antes de enviar
+    final email = ValidationChains.emailSanitization.sanitize(emailCtrl.text) ?? '';
+    final senha = senhaCtrl.text;
+
+    final user = await AuthService.login(email, senha);
     if (user != null) {
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -45,29 +53,42 @@ class _LoginScreenState extends State<LoginScreen> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: const [BoxShadow(blurRadius: 20, color: Colors.black12)],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Gestão de Incidentes', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 20),
-              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email')),
-              const SizedBox(height: 12),
-              TextField(controller: senhaCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Senha')),
-              const SizedBox(height: 16),
-              if (erro != null) Text(erro!, style: const TextStyle(color: Colors.red)),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: loading ? null : _doLogin,
-                child: loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Entrar'),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: _mostrarDialogCriarConta,
-                child: const Text('Criar nova conta'),
-              ),
-            ],
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Gestão de Incidentes', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: emailCtrl,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: ValidationChains.emailValidation.validate,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: senhaCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Senha'),
+                  validator: ValidationChains.passwordValidation.validate,
+                ),
+                const SizedBox(height: 16),
+                if (erro != null) Text(erro!, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: loading ? null : _doLogin,
+                  child: loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Entrar'),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: _mostrarDialogCriarConta,
+                  child: const Text('Criar nova conta'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -75,6 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _mostrarDialogCriarConta() {
+    final formKey = GlobalKey<FormState>();
     final nomeCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final senhaCtrl = TextEditingController();
@@ -86,33 +108,49 @@ class _LoginScreenState extends State<LoginScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Criar Nova Conta'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nomeCtrl,
-                decoration: const InputDecoration(labelText: 'Nome'),
-              ),
-              TextField(
-                controller: emailCtrl,
-                decoration: const InputDecoration(labelText: 'Email'),
-              ),
-              TextField(
-                controller: senhaCtrl,
-                decoration: const InputDecoration(labelText: 'Senha'),
-                obscureText: true,
-              ),
-              TextField(
-                controller: confirmarSenhaCtrl,
-                decoration: const InputDecoration(labelText: 'Confirmar Senha'),
-                obscureText: true,
-              ),
-              if (erro != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Text(erro!, style: const TextStyle(color: Colors.red)),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nomeCtrl,
+                  decoration: const InputDecoration(labelText: 'Nome'),
+                  validator: ValidationChains.nameValidation.validate,
                 ),
-            ],
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: emailCtrl,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: ValidationChains.emailValidation.validate,
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: senhaCtrl,
+                  decoration: const InputDecoration(labelText: 'Senha'),
+                  obscureText: true,
+                  validator: ValidationChains.passwordValidation.validate,
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: confirmarSenhaCtrl,
+                  decoration: const InputDecoration(labelText: 'Confirmar Senha'),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value != senhaCtrl.text) {
+                      return 'Senhas não conferem';
+                    }
+                    return null;
+                  },
+                ),
+                if (erro != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Text(erro!, style: const TextStyle(color: Colors.red)),
+                  ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -121,30 +159,19 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                // Validações
-                if (nomeCtrl.text.trim().isEmpty) {
-                  setState(() => erro = 'Nome é obrigatório');
-                  return;
-                }
-                if (emailCtrl.text.trim().isEmpty) {
-                  setState(() => erro = 'Email é obrigatório');
-                  return;
-                }
-                if (senhaCtrl.text.length < 6) {
-                  setState(() => erro = 'Senha deve ter no mínimo 6 caracteres');
-                  return;
-                }
-                if (senhaCtrl.text != confirmarSenhaCtrl.text) {
-                  setState(() => erro = 'Senhas não conferem');
+                // Validar com ValidationChains
+                if (!formKey.currentState!.validate()) {
                   return;
                 }
 
                 try {
-                  await AuthService.criarUsuario(
-                    nomeCtrl.text.trim(),
-                    emailCtrl.text.trim(),
-                    senhaCtrl.text,
-                  );
+                  // Sanitizar dados antes de criar
+                  final nome = ValidationChains.nameSanitization.sanitize(nomeCtrl.text) ?? '';
+                  final email = ValidationChains.emailSanitization.sanitize(emailCtrl.text) ?? '';
+                  final senha = senhaCtrl.text;
+
+                  await AuthService.criarUsuario(nome, email, senha);
+                  
                   if (!mounted) return;
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
