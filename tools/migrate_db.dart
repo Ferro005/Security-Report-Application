@@ -20,7 +20,7 @@ void main(List<String> args) {
     print('Existing columns: ${cols.join(', ')}');
 
     final hasHash = cols.contains('hash');
-    final hasSenha = cols.contains('senha');
+
     final hasFailed = cols.contains('failed_attempts');
     final hasLastFailed = cols.contains('last_failed_at');
     final hasLocked = cols.contains('locked_until');

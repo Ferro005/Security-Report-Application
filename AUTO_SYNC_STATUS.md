@@ -1,29 +1,45 @@
 # 🔄 Sincronização Automática de Utilizadores
 
-## ✅ Estado Atual: ATIVADA
+## ✅ Estado Atual: ATIVADA COM GIT AUTOMATION
 
-A sincronização automática da base de dados empacotada **está ATIVA** e funciona da seguinte forma:
+A sincronização automática da base de dados empacotada **está ATIVA** e inclui **commit e push automáticos** para o GitHub.
 
 ## 🎯 Como Funciona
 
 ### Quando é Acionada
-Sempre que um novo utilizador é criado via `AuthService.criarUsuario()`, a base de dados runtime é **automaticamente copiada** para `assets/db/gestao_incidentes.db`.
+Sempre que um novo utilizador é criado via `AuthService.criarUsuario()`, o sistema:
+1. ✅ Copia a DB runtime para `assets/db/gestao_incidentes.db`
+2. ✅ Faz `git add` do ficheiro
+3. ✅ Cria commit automático com timestamp
+4. ✅ Faz `git push origin main` automaticamente
 
 ### Condições
 - ✅ **Apenas em modo DEBUG** (não funciona em builds de release)
 - ✅ Executado após inserção bem-sucedida do utilizador
 - ✅ Executado após registo de auditoria
+- ✅ Requer Git configurado e autenticado
 
-### Mensagem no Console
-Quando a sincronização ocorre com sucesso, verás:
+### Mensagens no Console
+
+**Sucesso completo:**
 ```
 ✓ Base de dados sincronizada com assets/db/
-  Lembrete: Faça commit e push das alterações!
+✓ Commit automático criado
+✓ Push automático para GitHub concluído
+  📦 DB atualizada no repositório!
 ```
 
-Se houver erro (ex: permissões), verás:
+**Sem alterações:**
 ```
-Aviso: Não foi possível sincronizar DB com assets: [erro]
+✓ Base de dados sincronizada com assets/db/
+ℹ️  Nenhuma alteração para commit (DB já sincronizada)
+```
+
+**Erro (fallback manual):**
+```
+✓ Base de dados sincronizada com assets/db/
+⚠️  Git automation falhou: [erro]
+  Lembrete: Faça commit e push manualmente!
 ```
 
 ## 📋 Workflow Recomendado

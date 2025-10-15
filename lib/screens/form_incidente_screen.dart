@@ -106,7 +106,7 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: categoriaSelecionada,
+                      initialValue: categoriaSelecionada,
                       items: ['TI', 'RH', 'Infraestrutura']
                           .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                           .toList(),
@@ -115,7 +115,7 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: riscoSelecionado,
+                      initialValue: riscoSelecionado,
                       items: ['Baixo', 'Médio', 'Alto', 'Crítico']
                           .map((r) => DropdownMenuItem(value: r, child: Text(r)))
                           .toList(),
@@ -125,7 +125,7 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
                     const SizedBox(height: 10),
                     if (isAdmin)
                       DropdownButtonFormField<int>(
-                        value: tecnicoSelecionado,
+                        initialValue: tecnicoSelecionado,
                         items: [
                           const DropdownMenuItem(value: null, child: Text('— Nenhum técnico —')),
                           ...tecnicos.map((t) => DropdownMenuItem(
