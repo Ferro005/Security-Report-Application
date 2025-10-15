@@ -42,7 +42,8 @@ dependency_overrides:
   meta: ^1.17.0
   pointycastle: ^4.0.0
   test_api: ^0.7.7
->>>>>>> 7fcbba4b7819467774316a6aa798808323b4d9ab
+  screen_retriever: ^0.2.0
+  window_manager: ^0.5.1
 
 flutter:
   uses-material-design: true
