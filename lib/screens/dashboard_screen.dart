@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../models/incidente.dart';
@@ -161,6 +162,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.add_circle_outline),
             tooltip: 'Novo Incidente',
             onPressed: _novoIncidente,
+          ),
+          IconButton(
+            icon: const Icon(Icons.power_settings_new),
+            tooltip: 'Desligar Aplicação',
+            onPressed: () async {
+              final confirmacao = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Desligar Aplicação'),
+                  content: const Text('Tem a certeza que deseja fechar a aplicação?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: const Text('Desligar'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmacao == true) {
+                exit(0);
+              }
+            },
           ),
         ],
       ),
