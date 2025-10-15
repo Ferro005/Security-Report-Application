@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:path/path.dart' as path;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -42,12 +43,19 @@ void main() async {
   print('   ✓ $deleted usuário(s) removido(s)\n');
 
   // Generate Argon2id hash for default password
-  print('🔐 Gerando hash Argon2id...');
+  print('🔐 Gerando hash Argon2id com salt único...');
   final password = 'Senha@123456';
   
+  // Gerar salt único e aleatório (16 bytes)
+  final random = Random.secure();
+  final saltBytes = Uint8List(16);
+  for (int i = 0; i < saltBytes.length; i++) {
+    saltBytes[i] = random.nextInt(256);
+  }
+
   final parameters = Argon2Parameters(
     Argon2Parameters.ARGON2_id,
-    utf8.encode('somesalt'),
+    saltBytes,  // ✅ Salt único
     version: Argon2Parameters.ARGON2_VERSION_13,
     iterations: 3,
     memory: 65536,
@@ -61,9 +69,10 @@ void main() async {
   final result = Uint8List(32);
   argon2.generateBytes(passwordBytes, result, 0, result.length);
 
-  final hash = '\$argon2id\$${base64.encode(result)}';
+  // Formato: $argon2id$<salt_base64>$<hash_base64>
+  final hash = '\$argon2id\$${base64.encode(saltBytes)}\$${base64.encode(result)}';
   
-  print('   ✓ Hash gerado\n');
+  print('   ✓ Hash gerado com salt único\n');
 
   // Create users
   print('👥 Criando usuários...');

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:argon2/argon2.dart';
 import 'package:bcrypt/bcrypt.dart'; // Manter para verificar hashes antigos
@@ -12,11 +13,19 @@ import 'auditoria_service.dart';
 class AuthService {
   /// Gera hash seguro com Argon2id (winner do Password Hashing Competition)
   /// Configuração recomendada: 64MB RAM, 3 iterações, 4 threads paralelas
+  /// SECURITY: Cada password tem salt único e aleatório (16 bytes)
   static Future<String> hashPassword(String senha) async {
     try {
+      // Gerar salt único e aleatório (16 bytes)
+      final random = Random.secure();
+      final saltBytes = Uint8List(16);
+      for (int i = 0; i < saltBytes.length; i++) {
+        saltBytes[i] = random.nextInt(256);
+      }
+      
       final parameters = Argon2Parameters(
         Argon2Parameters.ARGON2_id,  // Argon2id (resistente a GPU e side-channel)
-        utf8.encode('somesalt'),     // Salt será gerado automaticamente
+        saltBytes,                    // ✅ Salt único por utilizador
         version: Argon2Parameters.ARGON2_VERSION_13,
         iterations: 3,               // Time cost
         memory: 65536,               // 64 MB (em KB)
@@ -30,10 +39,10 @@ class AuthService {
       final result = Uint8List(32); // 32 bytes output
       argon2.generateBytes(passwordBytes, result, 0, result.length);
       
-      // Converter para formato de hash armazenável
-      final hash = base64.encode(result);
+      // Formato: $argon2id$<salt_base64>$<hash_base64>
+      final hash = '\$argon2id\$${base64.encode(saltBytes)}\$${base64.encode(result)}';
       SecureLogger.crypto('argon2_hash_generated', true);
-      return '\$argon2id\$$hash'; // Prefixo para identificação
+      return hash;
     } catch (e) {
       SecureLogger.error('Erro ao gerar hash Argon2', e);
       throw Exception('Erro ao processar credenciais');
@@ -41,38 +50,68 @@ class AuthService {
   }
   
   /// Verifica senha contra hash (suporta BCrypt legado e Argon2)
+  /// SECURITY: Usa constant-time comparison para prevenir timing attacks
   static Future<bool> verifyPassword(String senha, String hash) async {
     try {
       // Detectar tipo de hash
       if (hash.startsWith(r'$argon2')) {
-        // Hash Argon2
-        final hashPart = hash.replaceFirst(r'$argon2id$', '');
-        final storedHash = base64.decode(hashPart);
+        // Parse: $argon2id$<salt>$<hash>
+        final parts = hash.split('\$');
         
-        final parameters = Argon2Parameters(
-          Argon2Parameters.ARGON2_id,
-          utf8.encode('somesalt'),
-          version: Argon2Parameters.ARGON2_VERSION_13,
-          iterations: 3,
-          memory: 65536,
-          lanes: 4,
-        );
-        
-        final argon2 = Argon2BytesGenerator();
-        argon2.init(parameters);
-        
-        final passwordBytes = utf8.encode(senha);
-        final result = Uint8List(32);
-        argon2.generateBytes(passwordBytes, result, 0, result.length);
-        
-        // Comparação constant-time
-        bool matches = true;
-        for (int i = 0; i < result.length; i++) {
-          if (result[i] != storedHash[i]) matches = false;
+        // Formato antigo (sem salt separado) - compatibilidade retroativa
+        if (parts.length == 3) {
+          final hashPart = parts[2];
+          final storedHash = base64.decode(hashPart);
+          
+          final parameters = Argon2Parameters(
+            Argon2Parameters.ARGON2_id,
+            utf8.encode('somesalt'),  // Salt fixo antigo
+            version: Argon2Parameters.ARGON2_VERSION_13,
+            iterations: 3,
+            memory: 65536,
+            lanes: 4,
+          );
+          
+          final argon2 = Argon2BytesGenerator();
+          argon2.init(parameters);
+          
+          final passwordBytes = utf8.encode(senha);
+          final result = Uint8List(32);
+          argon2.generateBytes(passwordBytes, result, 0, result.length);
+          
+          final matches = _constantTimeCompare(result, storedHash);
+          SecureLogger.crypto('argon2_verification_legacy', matches);
+          return matches;
         }
         
-        SecureLogger.crypto('argon2_verification', matches);
-        return matches;
+        // Formato novo (com salt único) - mais seguro
+        if (parts.length == 4) {
+          final saltBytes = base64.decode(parts[2]);
+          final storedHash = base64.decode(parts[3]);
+          
+          final parameters = Argon2Parameters(
+            Argon2Parameters.ARGON2_id,
+            saltBytes,  // ✅ Salt único do hash
+            version: Argon2Parameters.ARGON2_VERSION_13,
+            iterations: 3,
+            memory: 65536,
+            lanes: 4,
+          );
+          
+          final argon2 = Argon2BytesGenerator();
+          argon2.init(parameters);
+          
+          final passwordBytes = utf8.encode(senha);
+          final result = Uint8List(32);
+          argon2.generateBytes(passwordBytes, result, 0, result.length);
+          
+          final matches = _constantTimeCompare(result, storedHash);
+          SecureLogger.crypto('argon2_verification', matches);
+          return matches;
+        }
+        
+        SecureLogger.warning('Formato de hash Argon2 inválido');
+        return false;
       } else if (hash.startsWith(r'$2') || hash.startsWith(r'$2a$') || hash.startsWith(r'$2b$')) {
         // Hash BCrypt legado
         SecureLogger.info('Verificando hash BCrypt legado - migração recomendada');
@@ -87,6 +126,19 @@ class AuthService {
       SecureLogger.error('Erro ao verificar senha', e);
       return false;
     }
+  }
+  
+  /// Comparação constant-time para prevenir timing attacks
+  /// SECURITY: Não permite ao atacante descobrir quantos bytes estão corretos
+  static bool _constantTimeCompare(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    
+    int diff = 0;
+    for (int i = 0; i < a.length; i++) {
+      diff |= a[i] ^ b[i];
+    }
+    
+    return diff == 0;
   }
 
   /// Cria um novo usuário com senha hasheada
