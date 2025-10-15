@@ -18,82 +18,89 @@ class AuthService {
 
   /// Tenta login com bloqueio temporário e logs de auditoria
   static Future<User?> login(String email, String senha) async {
-    final db = await DatabaseHelper.instance.database;
-    final now = DateTime.now().millisecondsSinceEpoch;
+    try {
+        final db = await DatabaseHelper.instance.database;
+        final now = DateTime.now().millisecondsSinceEpoch;
 
-    final rows = await db.query(
-      'usuarios',
-      where: 'email = ?',
-      whereArgs: [email],
-      limit: 1,
-    );
+        // Buscar usuário
+        final rows = await db.query(
+            'usuarios',
+            where: 'email = ?',
+            whereArgs: [email],
+            limit: 1,
+        );
 
-    if (rows.isEmpty) {
-      await AuditoriaService.registar(
-        acao: 'login_erro',
-        detalhe: 'Email não existente: $email',
-      );
-      await Future.delayed(const Duration(milliseconds: 200)); // anti-timing
-      return null;
+        if (rows.isEmpty) {
+            await AuditoriaService.registar(
+                acao: 'login_erro',
+                detalhe: 'Email não existente: $email'
+            );
+            await Future.delayed(const Duration(milliseconds: 200));
+            return null;
+        }
+
+        final user = User.fromMap(rows.first);
+
+        // Verificar bloqueio
+        if (user.lockedUntil != null && user.lockedUntil! > now) {
+            throw Exception('Conta bloqueada. Tente novamente dentro de 30 segundos.');
+        }
+
+        // Verificar senha
+        final ok = BCrypt.checkpw(senha, user.hash);
+
+        if (!ok) {
+            final fails = (user.failedAttempts ?? 0) + 1;
+            int? lockedUntil;
+            
+            if (fails >= 5) {
+                lockedUntil = DateTime.now()
+                    .add(const Duration(seconds: 30))
+                    .millisecondsSinceEpoch;
+            }
+
+            await db.update(
+                'usuarios',
+                {
+                    'failed_attempts': fails,
+                    'last_failed_at': now,
+                    'locked_until': lockedUntil,
+                },
+                where: 'id = ?',
+                whereArgs: [user.id],
+            );
+
+            await AuditoriaService.registar(
+                acao: 'login_erro',
+                userId: user.id,
+                detalhe: 'Senha incorreta (tentativa $fails)'
+            );
+
+            await Future.delayed(const Duration(milliseconds: 200));
+            return null;
+        }
+
+        // Login bem sucedido - resetar contadores
+        await db.update(
+            'usuarios',
+            {
+                'failed_attempts': 0,
+                'last_failed_at': null,
+                'locked_until': null,
+            },
+            where: 'id = ?',
+            whereArgs: [user.id],
+        );
+
+        await AuditoriaService.registar(
+            acao: 'login_sucesso',
+            userId: user.id
+        );
+
+        return user;
+    } catch (e) {
+        print('Erro no login: $e');
+        throw Exception('Erro durante login: $e');
     }
-
-    final user = User.fromMap(rows.first);
-
-    // bloqueado?
-    if (user.lockedUntil != null && user.lockedUntil! > now) {
-      throw Exception('Conta bloqueada. Tente novamente dentro de 30 segundos.');
-    }
-
-    final ok = BCrypt.checkpw(senha, user.hash);
-
-    if (!ok) {
-      final fails = (user.failedAttempts ?? 0) + 1;
-
-      int? lockedUntil;
-      if (fails >= 5) {
-        lockedUntil = DateTime.now()
-            .add(const Duration(seconds: 30))
-            .millisecondsSinceEpoch;
-      }
-
-      await db.update(
-        'usuarios',
-        {
-          'failed_attempts': fails,
-          'last_failed_at': now,
-          'locked_until': lockedUntil,
-        },
-        where: 'id = ?',
-        whereArgs: [user.id],
-      );
-
-      await AuditoriaService.registar(
-        acao: 'login_erro',
-        userId: user.id,
-        detalhe: 'Senha incorreta (tentativa $fails)',
-      );
-
-      await Future.delayed(const Duration(milliseconds: 200));
-      return null;
-    }
-
-    // login OK → reset contadores
-    await db.update(
-      'usuarios',
-      {
-        'failed_attempts': 0,
-        'last_failed_at': null,
-        'locked_until': null,
-      },
-      where: 'id = ?',
-      whereArgs: [user.id],
-    );
-
-    await AuditoriaService.registar(
-      acao: 'login_sucesso',
-      userId: user.id,
-    );
-
-    return user;
   }
 }
