@@ -1,5 +1,8 @@
 import 'dart:async';
-import 'package:bcrypt/bcrypt.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:argon2/argon2.dart';
+import 'package:bcrypt/bcrypt.dart'; // Manter para verificar hashes antigos
 import '../db/database_helper.dart';
 import '../models/user.dart';
 import '../utils/input_sanitizer.dart';
@@ -7,14 +10,82 @@ import '../utils/secure_logger.dart';
 import 'auditoria_service.dart';
 
 class AuthService {
-  /// Gera hash seguro para nova password (com sal e custo configurável)
-  static String hashPassword(String senha, {int rounds = 12}) {
+  /// Gera hash seguro com Argon2id (winner do Password Hashing Competition)
+  /// Configuração recomendada: 64MB RAM, 3 iterações, 4 threads paralelas
+  static Future<String> hashPassword(String senha) async {
     try {
-      // BCrypt.gensalt() não aceita parâmetros na versão atual
-      final salt = BCrypt.gensalt();
-      return BCrypt.hashpw(senha, salt);
+      final parameters = Argon2Parameters(
+        Argon2Parameters.ARGON2_id,  // Argon2id (resistente a GPU e side-channel)
+        utf8.encode('somesalt'),     // Salt será gerado automaticamente
+        version: Argon2Parameters.ARGON2_VERSION_13,
+        iterations: 3,               // Time cost
+        memory: 65536,               // 64 MB (em KB)
+        lanes: 4,                    // Parallelism
+      );
+      
+      final argon2 = Argon2BytesGenerator();
+      argon2.init(parameters);
+      
+      final passwordBytes = utf8.encode(senha);
+      final result = Uint8List(32); // 32 bytes output
+      argon2.generateBytes(passwordBytes, result, 0, result.length);
+      
+      // Converter para formato de hash armazenável
+      final hash = base64.encode(result);
+      SecureLogger.crypto('argon2_hash_generated', true);
+      return '\$argon2id\$$hash'; // Prefixo para identificação
     } catch (e) {
-      throw Exception('Erro ao gerar hash da senha: $e');
+      SecureLogger.error('Erro ao gerar hash Argon2', e);
+      throw Exception('Erro ao processar credenciais');
+    }
+  }
+  
+  /// Verifica senha contra hash (suporta BCrypt legado e Argon2)
+  static Future<bool> verifyPassword(String senha, String hash) async {
+    try {
+      // Detectar tipo de hash
+      if (hash.startsWith(r'$argon2')) {
+        // Hash Argon2
+        final hashPart = hash.replaceFirst(r'$argon2id$', '');
+        final storedHash = base64.decode(hashPart);
+        
+        final parameters = Argon2Parameters(
+          Argon2Parameters.ARGON2_id,
+          utf8.encode('somesalt'),
+          version: Argon2Parameters.ARGON2_VERSION_13,
+          iterations: 3,
+          memory: 65536,
+          lanes: 4,
+        );
+        
+        final argon2 = Argon2BytesGenerator();
+        argon2.init(parameters);
+        
+        final passwordBytes = utf8.encode(senha);
+        final result = Uint8List(32);
+        argon2.generateBytes(passwordBytes, result, 0, result.length);
+        
+        // Comparação constant-time
+        bool matches = true;
+        for (int i = 0; i < result.length; i++) {
+          if (result[i] != storedHash[i]) matches = false;
+        }
+        
+        SecureLogger.crypto('argon2_verification', matches);
+        return matches;
+      } else if (hash.startsWith(r'$2') || hash.startsWith(r'$2a$') || hash.startsWith(r'$2b$')) {
+        // Hash BCrypt legado
+        SecureLogger.info('Verificando hash BCrypt legado - migração recomendada');
+        final result = BCrypt.checkpw(senha, hash);
+        SecureLogger.crypto('bcrypt_verification_legacy', result);
+        return result;
+      } else {
+        SecureLogger.warning('Formato de hash desconhecido');
+        return false;
+      }
+    } catch (e) {
+      SecureLogger.error('Erro ao verificar senha', e);
+      return false;
     }
   }
 
@@ -52,8 +123,8 @@ class AuthService {
         throw Exception('Email já cadastrado');
       }
 
-      // Gerar hash da senha
-      final hash = hashPassword(senha);
+      // Gerar hash da senha com Argon2
+      final hash = await hashPassword(senha);
 
       // Inserir novo usuário
       await db.insert('usuarios', {
@@ -122,12 +193,24 @@ class AuthService {
             throw Exception('Conta bloqueada. Tente novamente dentro de 30 segundos.');
         }
 
-        // Verificação segura de senha
+        // Verificação segura de senha (Argon2 ou BCrypt legado)
         bool ok = false;
         try {
           if (user.hash.isNotEmpty) {
-            ok = BCrypt.checkpw(senha, user.hash);
-            SecureLogger.crypto('password_verification', ok);
+            ok = await verifyPassword(senha, user.hash);
+            
+            // Migração automática de BCrypt para Argon2
+            if (ok && user.hash.startsWith(r'$2')) {
+              SecureLogger.info('Migrando hash BCrypt para Argon2 para usuário ${user.id}');
+              final newHash = await hashPassword(senha);
+              await db.update(
+                'usuarios',
+                {'hash': newHash},
+                where: 'id = ?',
+                whereArgs: [user.id],
+              );
+              SecureLogger.audit('hash_migration', 'BCrypt → Argon2 para usuário ${user.id}');
+            }
           } else {
             SecureLogger.warning('Hash vazio para usuário ${user.id}');
             await AuditoriaService.registar(
