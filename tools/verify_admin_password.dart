@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:bcrypt/bcrypt.dart';
+import 'package:path/path.dart' as path;
 
 void main(List<String> args) {
-  final dbPath = r'C:\Users\Henrique\OneDrive\Documentos\gestao_incidentes.db';
+  final dbPath = path.join(Directory.current.path, 'assets', 'db', 'gestao_incidentes.db');
   if (!File(dbPath).existsSync()) {
-    print('DB not found: $dbPath');
+    print('Base de dados não encontrada em: $dbPath');
     return;
   }
   final passwordToCheck = args.isNotEmpty ? args[0] : 'Admin1234';
