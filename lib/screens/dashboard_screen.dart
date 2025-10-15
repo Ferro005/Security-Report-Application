@@ -189,7 +189,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: filtroStatus.isEmpty ? 'Todos' : filtroStatus,
+                          initialValue: filtroStatus.isEmpty ? 'Todos' : filtroStatus,
                           items: statusList.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (v) {
                             filtroStatus = v ?? '';
@@ -201,7 +201,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: filtroCategoria.isEmpty ? 'Todas' : filtroCategoria,
+                          initialValue: filtroCategoria.isEmpty ? 'Todas' : filtroCategoria,
                           items: categoriaList.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (v) {
                             filtroCategoria = v ?? '';
@@ -213,7 +213,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: filtroRisco.isEmpty ? 'Todos' : filtroRisco,
+                          initialValue: filtroRisco.isEmpty ? 'Todos' : filtroRisco,
                           items: riscoList.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (v) {
                             filtroRisco = v ?? '';

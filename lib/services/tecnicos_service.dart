@@ -1,4 +1,4 @@
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
 import '../db/database_helper.dart';
 
 class TecnicosService {

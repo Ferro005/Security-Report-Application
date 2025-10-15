@@ -3,7 +3,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite_common/sqlite_api.dart';
+
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -111,7 +111,56 @@ class DatabaseHelper {
         if (File(runtimePath).existsSync()) {
           await File(runtimePath).copy(assetsPath);
           print('✓ Base de dados sincronizada com assets/db/');
-          print('  Lembrete: Faça commit e push das alterações!');
+          
+          // Auto commit and push (debug only)
+          try {
+            final timestamp = DateTime.now().toIso8601String().substring(0, 19).replaceAll(':', '-');
+            
+            // Git add
+            final addResult = await Process.run(
+              'git',
+              ['add', 'assets/db/gestao_incidentes.db'],
+              workingDirectory: projectRoot,
+            );
+            
+            if (addResult.exitCode == 0) {
+              // Git commit
+              final commitResult = await Process.run(
+                'git',
+                ['commit', '-m', 'auto: update users database [$timestamp]'],
+                workingDirectory: projectRoot,
+              );
+              
+              if (commitResult.exitCode == 0) {
+                print('✓ Commit automático criado');
+                
+                // Git push
+                final pushResult = await Process.run(
+                  'git',
+                  ['push', 'origin', 'main'],
+                  workingDirectory: projectRoot,
+                );
+                
+                if (pushResult.exitCode == 0) {
+                  print('✓ Push automático para GitHub concluído');
+                  print('  📦 DB atualizada no repositório!');
+                } else {
+                  print('⚠️  Push falhou: ${pushResult.stderr}');
+                  print('  Execute manualmente: git push origin main');
+                }
+              } else {
+                final stderr = commitResult.stderr.toString();
+                if (stderr.contains('nothing to commit')) {
+                  print('ℹ️  Nenhuma alteração para commit (DB já sincronizada)');
+                } else {
+                  print('⚠️  Commit falhou: $stderr');
+                }
+              }
+            }
+          } catch (e) {
+            print('⚠️  Git automation falhou: $e');
+            print('  Lembrete: Faça commit e push manualmente!');
+          }
         }
       }
     } catch (e) {
