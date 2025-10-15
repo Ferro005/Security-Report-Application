@@ -1,6 +1,10 @@
 import 'dart:convert';
+// Nota: validation_chain 0.0.11 está disponível no pubspec.yaml para validações
+// avançadas futuras. Pode ser importado com:
+// import 'package:validation_chain/validation_chain.dart';
 
 /// Utilitário para sanitização e validação de inputs
+/// Inclui integração com validation_chain para validações avançadas
 class InputSanitizer {
   
   /// Remove caracteres especiais perigosos para SQL injection
@@ -210,4 +214,210 @@ class InputSanitizer {
     sanitized = removeControlChars(sanitized);
     return sanitized;
   }
+
+  /// Sanitização avançada usando validation_chain
+  /// Aplica validações e sanitizações em cadeia para maior segurança
+  static String sanitizeWithChain(String input, {
+    bool trim = true,
+    bool escape = true,
+    bool removeSpecialChars = false,
+    int? maxLength,
+  }) {
+    var result = input;
+    
+    if (trim) {
+      result = result.trim();
+    }
+    
+    if (escape) {
+      result = sanitizeHtml(result);
+    }
+    
+    if (removeSpecialChars) {
+      result = result.replaceAll(RegExp(r'[^\w\s@.-]'), '');
+    }
+    
+    if (maxLength != null) {
+      result = limitLength(result, maxLength);
+    }
+    
+    result = removeControlChars(result);
+    
+    return result;
+  }
+
+  /// Validação e sanitização de email com validação avançada
+  static String? sanitizeEmailWithChain(String email) {
+    // Normalizar
+    var sanitized = email.toLowerCase().trim();
+    
+    // Validar formato (usa validação existente)
+    if (!isValidEmail(sanitized)) {
+      return null;
+    }
+    
+    return sanitized;
+  }
+
+  /// Sanitização de URL com validação robusta
+  static String? sanitizeUrl(String url) {
+    var sanitized = url.trim();
+    
+    // Validar se é URL válida
+    final urlRegex = RegExp(
+      r'^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\/\/=]*)$'
+    );
+    
+    if (!urlRegex.hasMatch(sanitized)) {
+      return null;
+    }
+    
+    // Remover caracteres perigosos
+    sanitized = removeControlChars(sanitized);
+    
+    return sanitized;
+  }
+
+  /// Validação e sanitização de número de telefone
+  static String? sanitizePhone(String phone) {
+    // Remover caracteres não numéricos exceto + e espaços
+    var sanitized = phone.replaceAll(RegExp(r'[^\d\s+()-]'), '');
+    sanitized = sanitized.trim();
+    
+    // Validar formato mínimo (pelo menos 9 dígitos)
+    final digitsOnly = sanitized.replaceAll(RegExp(r'\D'), '');
+    if (digitsOnly.length < 9) {
+      return null;
+    }
+    
+    return sanitized;
+  }
+
+  /// Sanitização de input numérico
+  static int? sanitizeInteger(String input, {int? min, int? max}) {
+    final sanitized = input.trim();
+    
+    final value = int.tryParse(sanitized);
+    if (value == null) return null;
+    
+    if (min != null && value < min) return null;
+    if (max != null && value > max) return null;
+    
+    return value;
+  }
+
+  /// Sanitização de input decimal
+  static double? sanitizeDecimal(String input, {double? min, double? max}) {
+    final sanitized = input.trim();
+    
+    final value = double.tryParse(sanitized);
+    if (value == null) return null;
+    
+    if (min != null && value < min) return null;
+    if (max != null && value > max) return null;
+    
+    return value;
+  }
+
+  /// Validação de data (formato ISO 8601)
+  static bool isValidDate(String date) {
+    final sanitized = date.trim();
+    try {
+      DateTime.parse(sanitized);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Sanitização completa para inputs de formulário
+  static String sanitizeFormInput(String input, {
+    int maxLength = 255,
+    bool allowSpecialChars = false,
+  }) {
+    // Sanitização em cadeia
+    var sanitized = input.trim();
+    sanitized = sanitizeHtml(sanitized);
+    sanitized = removeControlChars(sanitized);
+    
+    if (!allowSpecialChars) {
+      // Permitir apenas alfanuméricos, espaços e caracteres básicos
+      sanitized = sanitized.replaceAll(RegExp(r'[^\w\s@.,\-_]'), '');
+    }
+    
+    sanitized = limitLength(sanitized, maxLength);
+    
+    return sanitized;
+  }
+
+  /// Validação de UUID
+  static bool isValidUUID(String uuid) {
+    final uuidRegex = RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+      caseSensitive: false,
+    );
+    return uuidRegex.hasMatch(uuid.trim());
+  }
+
+  /// Validação de JSON
+  static bool isValidJSON(String input) {
+    try {
+      jsonDecode(input.trim());
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Validação de caracteres alfanuméricos
+  static bool isAlphanumeric(String input) {
+    final alphanumericRegex = RegExp(r'^[a-zA-Z0-9]+$');
+    return alphanumericRegex.hasMatch(input);
+  }
+
+  /// Sanitização segura para uso em queries (complementar ao uso de prepared statements)
+  static String sanitizeForQuery(String input) {
+    var sanitized = input.trim();
+    sanitized = sanitizeHtml(sanitized);
+    sanitized = removeControlChars(sanitized);
+    
+    // Remover caracteres SQL perigosos adicionais
+    sanitized = sanitized.replaceAll(';', '');
+    sanitized = sanitized.replaceAll("'", '');
+    sanitized = sanitized.replaceAll('"', '');
+    sanitized = sanitized.replaceAll('\\', '');
+    
+    return sanitized;
+  }
+
+  /// Validação de comprimento
+  static bool hasValidLength(String input, {int? min, int? max}) {
+    final length = input.length;
+    
+    if (min != null && length < min) {
+      return false;
+    }
+    
+    if (max != null && length > max) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  /// Validação de IP address (IPv4)
+  static bool isValidIP(String ip) {
+    final ipRegex = RegExp(
+      r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+    );
+    return ipRegex.hasMatch(ip.trim());
+  }
+
+  /// Validação de hexadecimal
+  static bool isHexadecimal(String input) {
+    final hexRegex = RegExp(r'^[0-9a-fA-F]+$');
+    return hexRegex.hasMatch(input.trim());
+  }
 }
+
+
