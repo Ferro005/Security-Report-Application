@@ -47,3 +47,14 @@ app.*.map.json
 # Database backups
 *.db.backup.*
 *.db.bak.*
+
+# Security: Sensitive database files
+assets/db/*.db
+*.db
+
+# Security: Debug tools with hardcoded credentials
+tools/list_users.dart
+tools/find_password.dart
+tools/verify_admin_password.dart
+tools/check_passwords.dart
+tools/compare_dbs.dart

@@ -49,15 +49,74 @@ class InputSanitizer {
   }
 
   /// Valida senha forte
+  /// Requisitos: mínimo 12 caracteres, maiúscula, minúscula, número, caractere especial
   static bool isStrongPassword(String password) {
-    if (password.length < 8) return false;
+    // Mínimo 12 caracteres para maior segurança
+    if (password.length < 12) return false;
     
-    // Deve conter: maiúscula, minúscula, número
+    // Blacklist de senhas comuns
+    const commonPasswords = [
+      'password', '12345678', '123456789', '1234567890',
+      'qwerty', 'admin', 'admin123', 'password123',
+      'Admin1234', 'senha123', 'Password1',
+      'letmein', 'welcome', 'monkey', 'dragon',
+      '123123', '111111', '000000', 'abc123',
+    ];
+    
+    if (commonPasswords.contains(password.toLowerCase())) {
+      return false;
+    }
+    
+    // Verificar padrões sequenciais perigosos
+    if (RegExp(r'(012|123|234|345|456|567|678|789|890)').hasMatch(password)) {
+      return false;
+    }
+    if (RegExp(r'(abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)', caseSensitive: false).hasMatch(password)) {
+      return false;
+    }
+    
+    // Deve conter: maiúscula, minúscula, número, caractere especial
     final hasUppercase = password.contains(RegExp(r'[A-Z]'));
     final hasLowercase = password.contains(RegExp(r'[a-z]'));
     final hasDigits = password.contains(RegExp(r'[0-9]'));
+    final hasSpecial = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;/`~]'));
     
-    return hasUppercase && hasLowercase && hasDigits;
+    return hasUppercase && hasLowercase && hasDigits && hasSpecial;
+  }
+  
+  /// Retorna mensagem descritiva sobre requisitos de senha não atendidos
+  static String getPasswordStrengthFeedback(String password) {
+    final feedback = <String>[];
+    
+    if (password.length < 12) {
+      feedback.add('Mínimo 12 caracteres (atual: ${password.length})');
+    }
+    if (!password.contains(RegExp(r'[A-Z]'))) {
+      feedback.add('Pelo menos 1 letra maiúscula');
+    }
+    if (!password.contains(RegExp(r'[a-z]'))) {
+      feedback.add('Pelo menos 1 letra minúscula');
+    }
+    if (!password.contains(RegExp(r'[0-9]'))) {
+      feedback.add('Pelo menos 1 número');
+    }
+    if (!password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;/`~]'))) {
+      feedback.add(r'Pelo menos 1 caractere especial (!@#$%^&*...)');
+    }
+    
+    const commonPasswords = [
+      'password', '12345678', 'qwerty', 'admin', 'admin123',
+      'password123', 'Admin1234', 'senha123',
+    ];
+    if (commonPasswords.contains(password.toLowerCase())) {
+      feedback.add('Senha muito comum - escolha outra');
+    }
+    
+    if (feedback.isEmpty) {
+      return 'Senha forte ✓';
+    }
+    
+    return 'Requisitos faltantes:\n• ${feedback.join('\n• ')}';
   }
 
   /// Valida nome (apenas letras e espaços)

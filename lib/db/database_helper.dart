@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import '../utils/secure_logger.dart';
 
 
 class DatabaseHelper {
@@ -21,8 +23,15 @@ class DatabaseHelper {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
 
-    final userProfile = Platform.environment['USERPROFILE'];
-    final path = join(userProfile!, 'OneDrive', 'Documentos', 'gestao_incidentes.db');
+    // Security: Use path_provider instead of environment variable
+    final dir = await getApplicationDocumentsDirectory();
+    final path = join(dir.path, 'gestao_incidentes.db');
+    
+    // Security: Validate canonical path
+    final canonicalPath = File(path).absolute.path;
+    if (!canonicalPath.startsWith(dir.path)) {
+      throw Exception('SECURITY: Invalid database path detected');
+    }
 
     if (!File(path).existsSync()) {
       final data = await rootBundle.load('assets/db/gestao_incidentes.db');
@@ -67,7 +76,7 @@ class DatabaseHelper {
     );
 
     if (tables.isEmpty) {
-      print('Criando tabela auditoria...');
+      SecureLogger.database('Creating auditoria table');
       await _onCreate(db, 1);
     }
   }
@@ -80,23 +89,31 @@ class DatabaseHelper {
       where: 'type = ?',
       whereArgs: ['table'],
     );
-    print('Tabelas no banco:');
+    SecureLogger.database('Tables in database:');
     for (var table in tables) {
-      print(table['name']);
+      SecureLogger.debug('Table: ${table['name']}');
     }
   }
 
   /// Return a list of column names for [table]. Useful to write defensive
   /// updates that don't reference missing columns on older DB schemas.
   Future<List<String>> tableColumns(String table) async {
+    // Security: Whitelist of allowed tables to prevent SQL injection
+    const allowedTables = ['usuarios', 'incidentes', 'auditoria'];
+    if (!allowedTables.contains(table.toLowerCase())) {
+      throw ArgumentError('Invalid table name: $table');
+    }
+    
     final db = await database;
-    final rows = await db.rawQuery("PRAGMA table_info('$table')");
+    // Use parameterized query for safety
+    final rows = await db.rawQuery("PRAGMA table_info(?)", [table]);
     return rows.map((r) => r['name']?.toString() ?? '').where((s) => s.isNotEmpty).toList();
   }
 
   /// Sync runtime database back to assets (development only)
   /// Call this after creating/modifying users to update the packaged DB
-  Future<void> syncToAssets() async {
+  /// Note: Auto-push disabled for security - manual commit required
+  Future<void> syncToAssets({bool enableAutoPush = false}) async {
     try {
       final dir = await getApplicationDocumentsDirectory();
       final runtimePath = join(dir.path, 'gestao_incidentes.db');
@@ -110,61 +127,76 @@ class DatabaseHelper {
         
         if (File(runtimePath).existsSync()) {
           await File(runtimePath).copy(assetsPath);
-          print('✓ Base de dados sincronizada com assets/db/');
+          SecureLogger.database('Database synced to assets/db/');
           
-          // Auto commit and push (debug only)
-          try {
-            final timestamp = DateTime.now().toIso8601String().substring(0, 19).replaceAll(':', '-');
-            
-            // Git add
-            final addResult = await Process.run(
-              'git',
-              ['add', 'assets/db/gestao_incidentes.db'],
-              workingDirectory: projectRoot,
-            );
-            
-            if (addResult.exitCode == 0) {
-              // Git commit
-              final commitResult = await Process.run(
+          // Auto commit (opt-in only for security)
+          if (enableAutoPush) {
+            SecureLogger.warning('SECURITY WARNING: Auto-push is enabled. This should only be used in development.');
+            try {
+              final timestamp = DateTime.now().toIso8601String().substring(0, 19).replaceAll(':', '-');
+              
+              // Git add with timeout
+              final addResult = await Process.run(
                 'git',
-                ['commit', '-m', 'auto: update users database [$timestamp]'],
+                ['add', 'assets/db/gestao_incidentes.db'],
                 workingDirectory: projectRoot,
+              ).timeout(
+                const Duration(seconds: 10),
+                onTimeout: () => throw TimeoutException('Git add timeout'),
               );
               
-              if (commitResult.exitCode == 0) {
-                print('✓ Commit automático criado');
-                
-                // Git push
-                final pushResult = await Process.run(
+              if (addResult.exitCode == 0) {
+                // Git commit with timeout
+                final commitResult = await Process.run(
                   'git',
-                  ['push', 'origin', 'main'],
+                  ['commit', '-m', 'auto: update users database [$timestamp]'],
                   workingDirectory: projectRoot,
+                ).timeout(
+                  const Duration(seconds: 10),
+                  onTimeout: () => throw TimeoutException('Git commit timeout'),
                 );
                 
-                if (pushResult.exitCode == 0) {
-                  print('✓ Push automático para GitHub concluído');
-                  print('  📦 DB atualizada no repositório!');
+                if (commitResult.exitCode == 0) {
+                  SecureLogger.info('Auto-commit created');
+                  
+                  // Git push with timeout
+                  final pushResult = await Process.run(
+                    'git',
+                    ['push', 'origin', 'main'],
+                    workingDirectory: projectRoot,
+                  ).timeout(
+                    const Duration(seconds: 30),
+                    onTimeout: () => throw TimeoutException('Git push timeout'),
+                  );
+                  
+                  if (pushResult.exitCode == 0) {
+                    SecureLogger.info('Auto-push to GitHub completed');
+                    SecureLogger.database('DB updated in repository');
+                  } else {
+                    SecureLogger.warning('Push failed - execute manually: git push origin main');
+                  }
                 } else {
-                  print('⚠️  Push falhou: ${pushResult.stderr}');
-                  print('  Execute manualmente: git push origin main');
-                }
-              } else {
-                final stderr = commitResult.stderr.toString();
-                if (stderr.contains('nothing to commit')) {
-                  print('ℹ️  Nenhuma alteração para commit (DB já sincronizada)');
-                } else {
-                  print('⚠️  Commit falhou: $stderr');
+                  final stderr = commitResult.stderr.toString();
+                  if (stderr.contains('nothing to commit')) {
+                    SecureLogger.info('No changes to commit (DB already synced)');
+                  } else {
+                    SecureLogger.warning('Commit failed');
+                  }
                 }
               }
+            } catch (e, stackTrace) {
+              SecureLogger.error('Git automation failed', e, stackTrace);
+              SecureLogger.info('Reminder: Commit and push manually!');
             }
-          } catch (e) {
-            print('⚠️  Git automation falhou: $e');
-            print('  Lembrete: Faça commit e push manualmente!');
+          } else {
+            SecureLogger.info('Auto-push disabled for security.');
+            SecureLogger.info('To enable, use: syncToAssets(enableAutoPush: true)');
+            SecureLogger.info('Reminder: Commit manually if needed.');
           }
         }
       }
-    } catch (e) {
-      print('Aviso: Não foi possível sincronizar DB com assets: $e');
+    } catch (e, stackTrace) {
+      SecureLogger.error('Failed to sync DB to assets', e, stackTrace);
     }
   }
 }
