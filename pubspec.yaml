@@ -26,6 +26,7 @@ dependencies:
   ffi: ^2.1.0
   win32: ^5.2.0
   window_manager: ^0.3.7
+  validation_chain: ^0.0.11
 
 dev_dependencies:
   flutter_test:

@@ -629,6 +629,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.5.1"
+  validation_chain:
+    dependency: "direct main"
+    description:
+      name: validation_chain
+      sha256: "1c53642077a19fe395534838ea1cb11eb8fc3842639e72544b71c845e4f09dae"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.11"
   vector_math:
     dependency: transitive
     description:
