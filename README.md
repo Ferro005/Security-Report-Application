@@ -29,8 +29,8 @@ Sistema completo de gestão de incidentes de segurança com autenticação Argon
 | Pacote | Versão | Finalidade |
 |--------|--------|------------|
 | `sqflite_common_ffi` | 2.3.6 | Base de dados SQLite |
+| `sqlcipher_flutter_libs` | 0.6.1 | Criptografia SQLite com AES-256 |
 | `argon2` | 1.0.1 | Hash de passwords (Argon2id) |
-| `bcrypt` | 1.1.3 | Compatibilidade com hashes legados |
 | `encrypt` | 5.0.3 | Criptografia AES-256 |
 | `crypto` | 3.0.6 | Hash SHA-256/512 |
 | `flutter_secure_storage` | 9.2.4 | Armazenamento seguro de chaves |
@@ -64,7 +64,7 @@ lib/
 │   ├── perfil_screen.dart
 │   └── tecnicos_screen.dart
 ├── services/
-│   ├── auth_service.dart        # Autenticação Argon2id + BCrypt legado
+│   ├── auth_service.dart        # Autenticação Argon2id (v2.1.0)
 │   ├── crypto_service.dart      # Criptografia AES-256
 │   ├── export_service.dart      # PDF/CSV criptografados
 │   ├── incidentes_service.dart
@@ -78,11 +78,10 @@ lib/
     └── app_theme.dart           # Tema customizado
 
 tools/
-├── migrate_to_argon2.dart       # Migração BCrypt → Argon2
-├── auto_migrate.dart            # Migração automática de schema
+├── reset_clean.dart             # Reset da database (v2.1.0)
+├── init_db.dart                 # Inicializar database
 ├── sync_db.dart                 # Sincronização manual de DB
-├── migrate_db.dart              # Adicionar colunas
-└── ... (outros scripts de gestão)
+└── populate_users.dart          # Popular users de teste
 ```
 
 ## 📦 Instalação e Configuração
@@ -136,7 +135,6 @@ Para criar novos usuários, utilize a interface administrativa após o login ou 
 
 ### Segurança
 - ✅ Passwords protegidas com **Argon2id** (memory-hard, 64MB RAM, 3 iterações)
-- ✅ Compatibilidade com hashes BCrypt legados (migração automática)
 - ✅ Validação de senha forte obrigatória (12+ caracteres, maiúsculas, minúsculas, números, especiais)
 - ✅ Blacklist de senhas comuns
 - ✅ Proteção contra tentativas de login excessivas (account lockout)
@@ -145,6 +143,7 @@ Para criar novos usuários, utilize a interface administrativa após o login ou 
 - ✅ Proteção contra timing attacks
 - ✅ Proteção contra SQL injection
 - ✅ Input sanitization em todos os campos
+- ✅ Database criptografada com AES-256 (SQLCipher)
 
 ## 🗄️ Base de Dados
 
@@ -158,7 +157,7 @@ Para criar novos usuários, utilize a interface administrativa após o login ou 
 **usuarios**
 - `id`, `nome`, `email`, `hash`, `tipo`
 - `failed_attempts`, `last_failed_at`, `locked_until`
-- Hashes: Argon2id (novos) ou BCrypt (legado, migração automática)
+- Hashes: Argon2id (v2.1.0 - production standard)
 
 **incidentes**
 - `id`, `numero`, `descricao`, `categoria`, `data_ocorrencia`
@@ -186,20 +185,23 @@ Para criar novos usuários, utilize a interface administrativa após o login ou 
 
 ## 🛠️ Scripts de Gestão (Tools)
 
-Principais scripts disponíveis:
+Principais scripts disponíveis em `tools/`:
 
 ```bash
-# Verificar status de migração Argon2
-dart run tools/migrate_to_argon2.dart
+# Resetar database (v2.1.0 - remove todos os dados)
+dart run tools/reset_clean.dart
 
-# Migração automática de schema
-dart run tools/auto_migrate.dart
+# Inicializar database vazia
+dart run tools/init_db.dart
 
-# Sincronizar DB manualmente (opt-in, desabilitado por padrão)
+# Sincronizar DB manualmente (opcional)
 dart run tools/sync_db.dart
+
+# Popular com dados de teste
+dart run tools/populate_users.dart
 ```
 
-**Nota**: Scripts de debug com senhas hardcoded foram removidos por segurança.
+**Nota**: Scripts de debug e migração obsoletos foram removidos na limpeza v2.1.0.
 
 ## 📊 Funcionalidades Detalhadas
 
@@ -271,22 +273,23 @@ flutter build windows --debug
 - ✅ Exports criptografados (AES-256)
 - ✅ Logging seguro implementado (SecureLogger)
 - ✅ Validação de senha forte (12+ chars, especiais)
-- ✅ Timeouts em operações Git
+- ✅ Database criptografada com SQLCipher
 
-**Fase 2: Migração Argon2**
-- ✅ Migração completa BCrypt → Argon2id
-- ✅ Configuração: 64MB RAM, 3 iterações, 4 threads
-- ✅ Migração automática transparente no login
-- ✅ Compatibilidade retroativa com BCrypt
-- ✅ Proteção contra timing attacks
+**v2.1.0 - Final Release**
+- ✅ Auditoria completa de segurança
+- ✅ Migração Argon2id completa (64MB RAM, 3 iterações, 4 threads)
+- ✅ Remoção de scripts de debug (ferramentas obsoletas)
+- ✅ Schema de dados alinhado e validado
+- ✅ Documentação sincronizada
+- ✅ Build release sem erros (0 warnings)
 
 **Score de Segurança**: 62/100 → **87/100** (+40%)
 
 ### Documentação Adicionada
-- 📄 `SECURITY_AUDIT.md` - Relatório completo de vulnerabilidades
+- 📄 `SECURITY_AUDIT.md` - Relatório final de auditoria v2.1.0
 - 📄 `SECURITY_FIXES_APPLIED.md` - Correções implementadas
-- 📄 `ARGON2_MIGRATION.md` - Guia de migração Argon2
-- 📄 `MIGRATION_SUMMARY.md` - Resumo executivo
+- 📄 `DATABASE_ENCRYPTION.md` - Criptografia AES-256 com SQLCipher
+- 📄 `VALIDATION_CHAIN_USAGE.md` - Sistema de validação
 
 ## 🤝 Contribuindo
 
@@ -308,10 +311,12 @@ Este projeto está sob licença proprietária. Todos os direitos reservados.
 ## 🔗 Links Úteis
 
 - [Repositório GitHub](https://github.com/Ferro005/Security-Report-Application)
-- [SECURITY_AUDIT.md](SECURITY_AUDIT.md) - Relatório de Segurança
-- [ARGON2_MIGRATION.md](ARGON2_MIGRATION.md) - Guia de Migração
+- [SECURITY_AUDIT.md](SECURITY_AUDIT.md) - Relatório Final de Segurança
+- [DATABASE_ENCRYPTION.md](DATABASE_ENCRYPTION.md) - Criptografia SQLCipher
+- [VALIDATION_CHAIN_USAGE.md](VALIDATION_CHAIN_USAGE.md) - Sistema de Validação
 - [Flutter Documentation](https://docs.flutter.dev/)
 - [SQLite Documentation](https://www.sqlite.org/docs.html)
+- [SQLCipher Documentation](https://www.zetetic.net/sqlcipher/)
 - [Argon2 RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106)
 - [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
 

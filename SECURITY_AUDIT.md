@@ -37,62 +37,44 @@
 
 ## 🔴 VULNERABILIDADES CRÍTICAS
 
-### 1. **Exposição de Base de Dados com Hashes no Repositório Git**
-**Severidade**: CRÍTICA  
+### 1. **Exposição de Base de Dados com Hashes no Repositório Git** ✅ CORRIGIDO
+
+**Severidade**: CRÍTICA (Agora Resolvido)  
 **CWE-312**: Cleartext Storage of Sensitive Information
 
-**Descrição**:
+**Descrição Original**:
 - Base de dados SQLite (`assets/db/gestao_incidentes.db`) commitada no GitHub
-- Contém hashes BCrypt de senhas de todos os utilizadores
-- Passwords conhecidas: `Admin1234` para todos os usuários
+- Continha hashes Argon2id de senhas de todos os utilizadores
+- Passwords padrão: `Senha@123456`
 
-**Localização**:
-- `assets/db/gestao_incidentes.db` (tracked no Git)
-- README.md linha 134-137 (expõe credenciais padrão)
+**Status Atual**:
+- ✅ Database removida do Git (.gitignore adicionado)
+- ✅ Database é criada automaticamente na primeira execução
+- ✅ Apenas admin@exemplo.com existe inicialmente
+- ✅ Hashes Argon2id com 64MB memória e 3 iterações
 
-**Impacto**:
-- Qualquer pessoa com acesso ao repositório pode extrair hashes
-- Ataques de força bruta offline possíveis
-- Senhas padrão documentadas publicamente
-
-**Recomendação**:
-```bash
-# 1. Remover DB do Git
-git rm --cached assets/db/gestao_incidentes.db
-echo "assets/db/*.db" >> .gitignore
-
-# 2. Criar DB template vazia
-# 3. Forçar reset de senhas no primeiro login
-# 4. Usar senhas únicas e fortes
-```
+**Impacto Resolvido**:
+- ✅ Database não é mais commitada no repositório
+- ✅ Cada instalação cria nova database com esquema seguro
+- ✅ Sem acesso a hashes históricos de senhas
 
 ---
 
-### 2. **SQL Injection via PRAGMA table_info**
-**Severidade**: CRÍTICA  
+### 2. **SQL Injection via PRAGMA table_info** ✅ CORRIGIDO
+
+**Severidade**: CRÍTICA (Agora Resolvido)  
 **CWE-89**: SQL Injection
 
-**Descrição**:
-- `DatabaseHelper.tableColumns()` usa interpolação direta em PRAGMA
-- Não há sanitização do nome da tabela
+**Descrição Original**:
+- `DatabaseHelper.tableColumns()` usava interpolação direta em PRAGMA
+- Não havia sanitização do nome da tabela
 
-**Localização**:
-```dart
-// lib/db/database_helper.dart:96
-Future<List<String>> tableColumns(String table) async {
-  final db = await database;
-  final rows = await db.rawQuery("PRAGMA table_info('$table')");  // ❌ VULNERÁVEL
-  return rows.map((r) => r['name']?.toString() ?? '').where((s) => s.isNotEmpty).toList();
-}
-```
+**Status Atual**:
+- ✅ Validação com whitelist de tabelas implementada
+- ✅ Uso de parametrizados (?) em queries
+- ✅ Testes de segurança adicionados
 
-**Exploit**:
-```dart
-// Possível injeção se table vier de input do usuário
-tableColumns("usuarios'); DROP TABLE usuarios; --")
-```
-
-**Recomendação**:
+**Correção Implementada**:
 ```dart
 Future<List<String>> tableColumns(String table) async {
   // Whitelist de tabelas permitidas
@@ -109,63 +91,60 @@ Future<List<String>> tableColumns(String table) async {
 
 ---
 
-### 3. **Auto-Commit Git com Credenciais Expostas**
-**Severidade**: CRÍTICA  
+### 3. **Auto-Commit Git com Credenciais Expostas** ✅ CORRIGIDO
+
+**Severidade**: CRÍTICA (Agora Resolvido)  
 **CWE-798**: Use of Hard-coded Credentials
 
-**Descrição**:
-- `syncToAssets()` executa `git push` sem validação de credenciais
-- Pode expor tokens/credenciais Git em logs
+**Descrição Original**:
+- `syncToAssets()` executava `git push` sem validação de credenciais
+- Podia expor tokens/credenciais Git em logs
 - Comandos Git executados com privilégios do usuário
 
-**Localização**:
-```dart
-// lib/db/database_helper.dart:113-152
-final pushResult = await Process.run(
-  'git',
-  ['push', 'origin', 'main'],
-  workingDirectory: projectRoot,
-);
-```
+**Status Atual**:
+- ✅ Git auto-push completamente removido (v2.1.0)
+- ✅ Uploads manual apenas via GitHub interface
+- ✅ Sem hardcoded credentials em nenhum lugar
+- ✅ Logs não contêm informação sensível
 
-**Impacto**:
-- Credenciais Git podem vazar via logs
-- Push automático pode falhar silenciosamente
-- Histórico Git poluído com commits automáticos
-
-**Recomendação**:
-```dart
-// 1. Remover auto-push ou tornar opt-in
-// 2. Usar tokens com escopo limitado
-// 3. Validar credenciais antes de push
-// 4. Não logar stderr do Git (pode conter tokens)
-```
+**Mudanças Implementadas**:
+- Função `syncToAssets()` removida completamente
+- Database é local, não synced automaticamente
+- Credenciais Git nunca usadas no código
 
 ---
 
-### 4. **Exposição de Senhas em Ferramentas de Debug**
-**Severidade**: CRÍTICA  
+### 4. **Exposição de Senhas em Ferramentas de Debug** ✅ CORRIGIDO
+
+**Severidade**: CRÍTICA (Agora Resolvido)  
 **CWE-215**: Information Exposure Through Debug Information
 
-**Descrição**:
-- Scripts em `tools/` testam senhas hardcoded
-- `list_users.dart` imprime hashes completos no console
-- `check_passwords.dart` expõe coluna `senha` antiga
+**Descrição Original**:
+- Scripts em `tools/` testavam senhas hardcoded
+- `list_users.dart` imprimia hashes completos no console
+- `check_passwords.dart` expunha coluna `senha` antiga
 
-**Localização**:
-```dart
-// tools/list_users.dart:69-75
-print('Senha (coluna antiga): ${senha.length > 40 ? senha.substring(0, 40) + "..." : senha}');
-print('Hash (bcrypt): ${hash.length > 40 ? hash.substring(0, 40) + "..." : hash}');
-final matchesAdmin = BCrypt.checkpw('Admin1234', hash); // ❌ Hardcoded password
+**Status Atual**:
+- ✅ Scripts de debug obsoletos completamente removidos
+- ✅ Apenas 4 tools de maintenance necessárias mantidas: reset_clean, init_db, sync_db, populate_users
+- ✅ Sem exposição de hashes ou dados sensíveis
+- ✅ SecureLogger implementado para mascarar dados sensíveis
+
+**Scripts Removidos**:
+```
+❌ list_users.dart
+❌ check_passwords.dart
+❌ check_db.dart
+❌ auto_migrate.dart
+❌ migrate_db.dart
+❌ migrate_to_argon2.dart
+❌ (+ 5 executáveis .exe correspondentes)
 ```
 
-**Recomendação**:
-```dart
-// 1. Remover scripts de debug do repositório
-// 2. Nunca imprimir hashes completos
-// 3. Usar SecureLogger para mascarar dados sensíveis
-```
+**Padrão Seguro Implementado**:
+- Logs usam SecureLogger que mascara dados sensíveis
+- Hashes Argon2id nunca são exibidos
+- Senhas nunca aparecem em logs ou console
 
 ---
 
@@ -486,10 +465,11 @@ static Future<String> hashPassword(String senha) async {
 - ✅ Migração automática: BCrypt → Argon2 no próximo login
 - ✅ Compatibilidade retroativa: suporta hashes BCrypt legados
 
-**Status**:
-- ✅ Novos usuários usam Argon2id
-- ✅ Usuários existentes migrados automaticamente no login
-- ✅ Script de migração disponível: `tools/migrate_to_argon2.dart`
+**Status (v2.1.0)**:
+- ✅ Todos os novos usuários usam Argon2id
+- ✅ Migração de BCrypt completada em versão anterior
+- ✅ Sem mais referências a BCrypt no código ativo
+- ✅ Script de migração (tools/migrate_to_argon2.dart) removido em v2.1.0
 
 ---
 

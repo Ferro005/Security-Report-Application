@@ -51,23 +51,26 @@ Aplicação desktop Flutter para gestão de incidentes de segurança com SQLite 
 
 ## 🔧 Ferramentas Mantidas (tools/)
 
-### Scripts Ativos
-- ✅ **auto_migrate.dart** - Migração automática de dados
-- ✅ **migrate_db.dart** - Migração manual de schemas
-- ✅ **migrate_to_argon2.dart** - Migração BCrypt → Argon2id
+### Scripts Ativos (v2.1.0)
+- ✅ **reset_clean.dart** - Reset da database (remover todos os dados)
+- ✅ **init_db.dart** - Inicializar database vazia
 - ✅ **sync_db.dart** - Sincronização manual runtime ↔ assets
+- ✅ **populate_users.dart** - Popular com dados de teste
 
-### ⚠️ Scripts Removidos (Obsoletos/Perigosos)
-- ❌ list_users.dart (credenciais expostas)
+### ✅ Scripts Removidos na Limpeza v2.1.0 (Obsoletos/Perigosos)
+- ❌ migrate_to_argon2.dart (migração concluída, não mais necessário)
+- ❌ auto_migrate.dart (migração automática - funcionalidade obsoleta)
+- ❌ migrate_db.dart (migration tool - schema já alinhado)
+- ❌ list_users.dart (credenciais expostas, ferramente de debug)
 - ❌ find_password.dart (credenciais expostas)
 - ❌ verify_admin_password.dart (credenciais expostas)
-- ❌ check_passwords.dart (debug tool)
+- ❌ check_passwords.dart (debug tool com senhas hardcoded)
 - ❌ compare_dbs.dart (debug tool)
-- ❌ analyze_db_paths.dart (já executado)
+- ❌ analyze_db_paths.dart (já executado, não mais necessário)
 - ❌ inspect_db.dart (já executado)
 - ❌ inspect_target_db.dart (já executado)
 - ❌ fix_hash.dart (já executado)
-- ❌ test_bcrypt.dart (já executado)
+- ❌ test_bcrypt.dart (teste de BCrypt - já migrado para Argon2id)
 
 ---
 
