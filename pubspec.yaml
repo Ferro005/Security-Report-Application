@@ -51,5 +51,4 @@ dependency_overrides:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/db/gestao_incidentes.db
+  # No packaged DB asset; schema is created on first run by SetupService.
