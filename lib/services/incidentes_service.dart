@@ -1,6 +1,7 @@
 
 import '../db/database_helper.dart';
 import '../models/incidente.dart';
+import '../utils/secure_logger.dart';
 
 class IncidentesService {
   /// 📋 Lista todos os incidentes ordenados por data
@@ -16,34 +17,83 @@ class IncidentesService {
         categoria TEXT,
         status TEXT,
         grau_risco TEXT,
-        data_reportado TEXT
+        data_reportado TEXT,
+        tecnico_responsavel INTEGER,
+        usuario_id INTEGER
       );
     ''');
 
+    // Garantir colunas novas em bases já existentes (migração leve)
+    try {
+      final cols = await DatabaseHelper.instance.tableColumns('incidentes');
+      if (!cols.contains('tecnico_responsavel')) {
+        await db.execute('ALTER TABLE incidentes ADD COLUMN tecnico_responsavel INTEGER;');
+        SecureLogger.database('Migrated: added column incidentes.tecnico_responsavel');
+      }
+      if (!cols.contains('usuario_id')) {
+        await db.execute('ALTER TABLE incidentes ADD COLUMN usuario_id INTEGER;');
+        SecureLogger.database('Migrated: added column incidentes.usuario_id');
+      }
+    } catch (e, st) {
+      SecureLogger.error('Incidentes table migration failed', e, st);
+    }
+
     final rows = await db.query('incidentes', orderBy: 'datetime(data_reportado) DESC');
 
-    print('🔍 ${rows.length} incidentes encontrados'); // debug
+    SecureLogger.debug('incidentes_list_count: ${rows.length}');
     return rows.map((e) => Incidente.fromMap(e)).toList();
   }
 
   /// ➕ Cria novo incidente
   static Future<bool> criar(Map<String, dynamic> data) async {
-    final db = await DatabaseHelper.instance.database;
-    final id = await db.insert('incidentes', data);
-    return id > 0;
+    try {
+      final db = await DatabaseHelper.instance.database;
+      // Garantir que a tabela existe (caso o utilizador salte o dashboard)
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS incidentes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          titulo TEXT,
+          descricao TEXT,
+          categoria TEXT,
+          status TEXT,
+          grau_risco TEXT,
+          data_reportado TEXT,
+          tecnico_responsavel INTEGER,
+          usuario_id INTEGER
+        );
+      ''');
+      final id = await db.insert('incidentes', data);
+      SecureLogger.database('insert', table: 'incidentes', affectedRows: 1);
+      return id > 0;
+    } catch (e, st) {
+      SecureLogger.error('Failed to create incidente', e, st);
+      return false;
+    }
   }
 
   /// ✏️ Atualiza incidente existente
   static Future<bool> atualizar(int id, Map<String, dynamic> data) async {
-    final db = await DatabaseHelper.instance.database;
-    final res = await db.update('incidentes', data, where: 'id = ?', whereArgs: [id]);
-    return res > 0;
+    try {
+      final db = await DatabaseHelper.instance.database;
+      final res = await db.update('incidentes', data, where: 'id = ?', whereArgs: [id]);
+      SecureLogger.database('update', table: 'incidentes', affectedRows: res);
+      return res > 0;
+    } catch (e, st) {
+      SecureLogger.error('Failed to update incidente', e, st);
+      return false;
+    }
   }
 
   /// ❌ Apaga incidente
   static Future<bool> apagar(int id) async {
-    final db = await DatabaseHelper.instance.database;
-    final res = await db.delete('incidentes', where: 'id = ?', whereArgs: [id]);
-    return res > 0;
+    try {
+      final db = await DatabaseHelper.instance.database;
+      final res = await db.delete('incidentes', where: 'id = ?', whereArgs: [id]);
+      SecureLogger.database('delete', table: 'incidentes', affectedRows: res);
+      return res > 0;
+    } catch (e, st) {
+      SecureLogger.error('Failed to delete incidente', e, st);
+      return false;
+    }
   }
 }

@@ -16,8 +16,8 @@ class CryptoService {
   static Future<void> initialize() async {
     try {
       // Tentar recuperar chave existente
-      String? keyStr = await _storage.read(key: _keyName);
-      String? ivStr = await _storage.read(key: _ivName);
+      final keyStr = await _storage.read(key: _keyName);
+      final ivStr = await _storage.read(key: _ivName);
 
       if (keyStr == null || ivStr == null) {
         // Gerar nova chave e IV

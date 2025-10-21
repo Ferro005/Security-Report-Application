@@ -44,12 +44,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _carregar() async {
     setState(() => loading = true);
-    final lista = await IncidentesService.listar();
-    setState(() {
-      todos = lista;
-      filtrados = lista;
-      loading = false;
-    });
+    try {
+      final lista = await IncidentesService.listar();
+      setState(() {
+        todos = lista;
+        filtrados = lista;
+        loading = false;
+      });
+    } catch (e) {
+      setState(() => loading = false);
+      _mostrarSnack('Erro ao carregar incidentes: $e', cor: Colors.red);
+    }
   }
 
   Future<void> _loadUnread() async {
@@ -215,6 +220,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _mostrarSnack('📊 CSV exportado para: ${file.path}');
             },
           ),
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              tooltip: 'Exportar PDF Descriptografado',
+              onPressed: () async {
+                final file = await ExportService.exportarPDFDescriptografado(filtrados);
+                _mostrarSnack('📄 PDF descriptografado exportado para: ${file.path}');
+              },
+            ),
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.table_chart_outlined),
+              tooltip: 'Exportar CSV Descriptografado',
+              onPressed: () async {
+                final file = await ExportService.exportarCSVDescriptografado(filtrados);
+                _mostrarSnack('📊 CSV descriptografado exportado para: ${file.path}');
+              },
+            ),
           // Only admins and technicians can create new incidents
           if (canManageIncidents)
             IconButton(

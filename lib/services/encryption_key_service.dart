@@ -31,18 +31,16 @@ class EncryptionKeyService {
     try {
       // Tentar ler chave existente
       String? existingKey = await _secureStorage.read(key: _keyStorageKey);
-      
-      if (existingKey != null) {
+      if (existingKey != null && existingKey.isNotEmpty) {
         SecureLogger.database('Using existing encryption key');
         return existingKey;
       }
 
       // Se não existir, gerar nova chave
       SecureLogger.database('Generating new encryption key');
-      String newKey = _generateSecureKey();
+      final newKey = _generateSecureKey();
       await _secureStorage.write(key: _keyStorageKey, value: newKey);
       SecureLogger.database('Encryption key generated and stored securely');
-      
       return newKey;
     } catch (e, stackTrace) {
       SecureLogger.error('Failed to get database password', e, stackTrace);
@@ -60,14 +58,12 @@ class EncryptionKeyService {
   /// Gera um salt para derivação de chave (se necessário)
   Future<String> getSalt() async {
     String? existingSalt = await _secureStorage.read(key: _saltStorageKey);
-    
-    if (existingSalt != null) {
+    if (existingSalt != null && existingSalt.isNotEmpty) {
       return existingSalt;
     }
 
-    String newSalt = _generateSecureKey();
+    final newSalt = _generateSecureKey();
     await _secureStorage.write(key: _saltStorageKey, value: newSalt);
-    
     return newSalt;
   }
 

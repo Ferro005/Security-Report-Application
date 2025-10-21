@@ -14,15 +14,6 @@ class SessionService {
   /// Inicializar secret key (chama apenas uma vez)
   static Future<void> initializeSecretKey() async {
     String? secretKey = await _storage.read(key: _secretKeyName);
-    
-    if (secretKey == null) {
-      // Gerar nova secret key (256-bit)
-      final random = Random.secure();
-      final bytes = List<int>.generate(32, (_) => random.nextInt(256));
-      secretKey = base64.encode(bytes);
-      await _storage.write(key: _secretKeyName, value: secretKey);
-      SecureLogger.audit('jwt_init', 'JWT secret key inicializado');
-    }
   }
 
   /// Obter secret key do armazenamento seguro

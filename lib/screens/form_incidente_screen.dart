@@ -52,33 +52,39 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
 
     setState(() => loading = true);
 
-    // Sanitizar dados antes de enviar
-    final titulo = ValidationChains.incidentDescriptionSanitization.sanitize(tituloCtrl.text) ?? '';
-    final descricao = ValidationChains.incidentDescriptionSanitization.sanitize(descCtrl.text) ?? '';
+    try {
+      // Sanitizar dados antes de enviar
+      final titulo = ValidationChains.incidentDescriptionSanitization.sanitize(tituloCtrl.text) ?? '';
+      final descricao = ValidationChains.incidentDescriptionSanitization.sanitize(descCtrl.text) ?? '';
 
-    final dados = {
-      'titulo': titulo,
-      'descricao': descricao,
-      'categoria': categoriaSelecionada,
-      'grau_risco': riscoSelecionado,
-      'status': widget.incidente?.status ?? 'Pendente',
-      'usuario_id': widget.user.id,
-      'tecnico_responsavel': tecnicoSelecionado,
-      'data_reportado': DateTime.now().toIso8601String(),
-    };
+      final dados = {
+        'titulo': titulo,
+        'descricao': descricao,
+        'categoria': categoriaSelecionada,
+        'grau_risco': riscoSelecionado,
+        'status': widget.incidente?.status ?? 'Pendente',
+        'usuario_id': widget.user.id,
+        'tecnico_responsavel': tecnicoSelecionado,
+        'data_reportado': DateTime.now().toIso8601String(),
+      };
 
-    bool sucesso;
-    if (widget.incidente == null) {
-      sucesso = await IncidentesService.criar(dados);
-    } else {
-      sucesso = await IncidentesService.atualizar(widget.incidente!.id, dados);
+      bool sucesso;
+      if (widget.incidente == null) {
+        sucesso = await IncidentesService.criar(dados);
+      } else {
+        sucesso = await IncidentesService.atualizar(widget.incidente!.id, dados);
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context, sucesso);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao guardar incidente: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
-
-    setState(() => loading = false);
-
-    if (!mounted) return;
-
-    Navigator.pop(context, sucesso);
   }
 
   @override
@@ -131,13 +137,13 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
                     ),
                     const SizedBox(height: 10),
                     if (isAdmin)
-                      DropdownButtonFormField<int>(
-                        initialValue: tecnicoSelecionado,
+                      DropdownButtonFormField<int?>(
+                        value: tecnicoSelecionado,
                         items: [
-                          const DropdownMenuItem(value: null, child: Text('— Nenhum técnico —')),
-                          ...tecnicos.map((t) => DropdownMenuItem(
-                                value: t['id'],
-                                child: Text(t['nome']),
+                          const DropdownMenuItem<int?>(value: null, child: Text('— Nenhum técnico —')),
+                          ...tecnicos.map((t) => DropdownMenuItem<int?>(
+                                value: t['id'] as int?,
+                                child: Text(t['nome'].toString()),
                               )),
                         ],
                         onChanged: (v) => setState(() => tecnicoSelecionado = v),
