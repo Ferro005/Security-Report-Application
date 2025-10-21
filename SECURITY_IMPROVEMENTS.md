@@ -1,3 +1,8 @@
+### 4. **Session Management Adequado** ✅ JÁ IMPLEMENTADO
+
+**Status**: ✅ IMPLEMENTADO em v2.1.0  
+**Severidade**: ALTA  
+**Implementação**: JWT (HS256) com expiração de 8h e refresh automático, chave secreta em `flutter_secure_storage`
 # 🛡️ Melhorias de Segurança Adicionais
 
 **Última Atualização:** 21 de Outubro de 2025  
@@ -27,7 +32,39 @@ final random = Random.secure();
 final saltBytes = Uint8List(16);
 for (int i = 0; i < saltBytes.length; i++) {
   saltBytes[i] = random.nextInt(256);
+  // Métodos de verificação/refresh implementados e integrados no AuthService
 }
+### 5. **Auditoria Avançada com Retenção** ✅ JÁ IMPLEMENTADO
+
+**Status**: ✅ IMPLEMENTADO em v2.1.0 (limpeza automática semanal)  
+**Severidade**: MÉDIA  
+**Implementação**: Retenção de 90 dias com `cleanOldAudits()` e `startAutoCleanup()` (Timer periódico)
+static Future<void> startAutoCleanup({int cleanupIntervalHours = 168}) async { /* ... */ }
+### 7. **Password Expiration** ✅ JÁ IMPLEMENTADO
+
+**Status**: ✅ IMPLEMENTADO em v2.1.0  
+**Severidade**: MÉDIA  
+**Implementação**: Campos `password_changed_at` e `password_expires_at`; serviços para verificar expiração e renovar
+// Verificação via PasswordPolicyService.isPasswordExpired(userId)
+### 8. **Histórico de Passwords** ✅ JÁ IMPLEMENTADO
+
+**Status**: ✅ IMPLEMENTADO em v2.1.0  
+**Severidade**: MÉDIA  
+**Implementação**: Tabela `password_history` e validação para bloquear reutilização das últimas 5
+// Implementado em PasswordPolicyService.isPasswordReused(userId, newPassword)
+### 9. **Notificações de Segurança** ✅ JÁ IMPLEMENTADO
+
+**Status**: ✅ IMPLEMENTADO em v2.1.0  
+**Severidade**: MÉDIA  
+**Implementação**: Tabela `notifications` e `NotificationsService` com eventos de login, expiração de senha, etc.
+// Ver helpers em NotificationsService (notifyLogin, notifyPasswordExpired, ...)
+### ✅ Implementado em v2.1.0 (Score: 91/100)
+| Rate limiting | ✅ COMPLETO | Account lockout + limitador global (janela 15 min) |
+### ❌ Recomendado para v2.2.0
+| 2FA (TOTP) | 🔴 ALTA | +3 pontos | Médio |
+| Rate limiting global por IP (se aplicável) | 🟠 MÉDIA | +1 ponto | Baixo |
+| UI: Centro de notificações | 🟠 MÉDIA | +1 ponto | Médio |
+**Status Final**: ✅ **v2.1.0 Production Ready | 91/100 Security Score**
 
 // ✅ Usar salt único para cada password
 final parameters = Argon2Parameters(

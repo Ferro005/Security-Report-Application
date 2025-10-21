@@ -12,6 +12,7 @@ import 'auditoria_service.dart';
 import 'session_service.dart';
 import 'password_policy_service.dart';
 import 'notifications_service.dart';
+import '../utils/rate_limiter.dart';
 
 class AuthService {
   /// Gera hash seguro com Argon2id (winner do Password Hashing Competition)
@@ -212,6 +213,19 @@ class AuthService {
   /// Tenta login com bloqueio temporário e logs de auditoria
   static Future<User?> login(String email, String senha) async {
     try {
+        // Rate limiting global (por operação)
+        if (RateLimiter.isBlocked('login')) {
+          SecureLogger.warning('Rate limit global atingido para login');
+          await AuditoriaService.registar(
+            acao: 'login_bloqueado_rate_limit',
+            detalhe: 'Muitas tentativas de login globais nas últimas 15 min',
+          );
+          await Future.delayed(const Duration(milliseconds: 300));
+          return null;
+        }
+
+        // Registrar tentativa atual
+        RateLimiter.record('login');
         // Sanitizar email
         final sanitizedEmail = InputSanitizer.sanitizeEmail(email);
         if (sanitizedEmail == null) {

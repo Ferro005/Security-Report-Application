@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../db/database_helper.dart';
 import '../utils/secure_logger.dart';
 
@@ -167,6 +168,14 @@ class AuditoriaService {
       SecureLogger.info(
         'Limpeza automática de auditoria agendada a cada $cleanupIntervalHours horas (${(cleanupIntervalHours / 24).toStringAsFixed(1)} dias)'
       );
+
+      Timer.periodic(Duration(hours: cleanupIntervalHours), (_) async {
+        try {
+          await cleanOldAudits();
+        } catch (e) {
+          SecureLogger.error('Erro na limpeza periódica de auditoria', e);
+        }
+      });
     } catch (e) {
       SecureLogger.error('Erro ao iniciar limpeza automática', e);
     }
