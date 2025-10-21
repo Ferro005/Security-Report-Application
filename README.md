@@ -21,9 +21,9 @@ Sistema completo de gestão de incidentes de segurança com autenticação Argon
 ## 🚀 Tecnologias Utilizadas
 
 ### Core
-- **Flutter 3.35.6** - Framework UI
+- **Flutter 3.35.6** - Framework UI (Windows, Linux, macOS, Android, iOS)
 - **Dart 3.9.2** - Linguagem de programação
-- **SQLite (sqflite_common_ffi)** - Base de dados local
+- **SQLite** - Base de dados local (Desktop via FFI, Mobile via sqflite)
 
 ### Dependências Principais
 | Pacote | Versão | Finalidade |
@@ -184,6 +184,12 @@ Para criar novos usuários, utilize a interface administrativa após o login ou 
    - Exports criptografados (AES-256)
    - Logging seguro com mascaramento
    - Sanitização de todos os inputs
+
+## 🖥️ Plataformas Suportadas
+
+- Desktop: Windows, Linux, macOS (SQLite via FFI + SQLCipher)
+- Mobile: Android, iOS (SQLite nativo + SQLCipher)
+- Web: Em avaliação (armazenamento cifrado no browser requer backend alternativo). A app compila para web, mas a persistência local cifrada está desativada nesta versão.
 
 ## 🛠️ Scripts de Gestão (Tools)
 

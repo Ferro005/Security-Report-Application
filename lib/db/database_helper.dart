@@ -23,14 +23,15 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB() async {
-    // Inicializar SQLCipher com suporte a criptografia
-    sqfliteFfiInit();
-
-    // Obter a factory com suporte a SQLCipher
-    final databaseFactoryWithCipher = createDatabaseFactoryFfi(
-      ffiInit: sqfliteFfiInit,
-    );
-    databaseFactory = databaseFactoryWithCipher;
+    // Inicializar driver FFI apenas em Desktop (Windows/Linux/macOS)
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      sqfliteFfiInit();
+      // Obter a factory com suporte a SQLCipher via FFI
+      final databaseFactoryWithCipher = createDatabaseFactoryFfi(
+        ffiInit: sqfliteFfiInit,
+      );
+      databaseFactory = databaseFactoryWithCipher;
+    }
 
   // Resolve a safe database directory
   final dir = await _getPreferredDatabaseDirectory();
