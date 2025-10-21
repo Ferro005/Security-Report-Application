@@ -9,6 +9,9 @@ import '../models/user.dart';
 import '../utils/input_sanitizer.dart';
 import '../utils/secure_logger.dart';
 import 'auditoria_service.dart';
+import 'session_service.dart';
+import 'password_policy_service.dart';
+import 'notifications_service.dart';
 
 class AuthService {
   /// Gera hash seguro com Argon2id (winner do Password Hashing Competition)
@@ -325,12 +328,38 @@ class AuthService {
           await db.update('usuarios', resetPayload, where: 'id = ?', whereArgs: [user.id]);
         }
 
+        // Gerar JWT token para sessão
+        await SessionService.initializeSecretKey(); // Inicializar chave se necessário
+        final token = await SessionService.generateToken(user);
+        SecureLogger.audit('session_token_generated', 'Token JWT gerado para ${user.email} ($token)', userId: user.id);
+
+        // Verificar expiração de senha
+        bool passwordExpired = false;
+        int? daysUntilExpiration;
+        
+        if (cols2.contains('password_expires_at')) {
+          passwordExpired = await PasswordPolicyService.isPasswordExpired(user.id);
+          daysUntilExpiration = await PasswordPolicyService.getDaysUntilExpiration(user.id);
+          
+          if (passwordExpired) {
+            SecureLogger.warning('Senha expirada para ${user.email}');
+            await NotificationsService.notifyPasswordExpired(user.id);
+          } else if (daysUntilExpiration <= 7 && daysUntilExpiration > 0) {
+            SecureLogger.info('Senha expira em $daysUntilExpiration dias para ${user.email}');
+            await NotificationsService.notifyPasswordExpiringSoon(user.id, daysUntilExpiration);
+          }
+        }
+
+        // Enviar notificação de login bem-sucedido
+        await NotificationsService.notifyLogin(user.id, user.email);
+
         SecureLogger.access(sanitizedEmail, true);
         SecureLogger.audit('login_sucesso', 'Usuário: ${user.id}', userId: user.id);
         
         await AuditoriaService.registar(
             acao: 'login_sucesso',
-            userId: user.id
+            userId: user.id,
+            detalhe: passwordExpired ? 'Senha expirada' : null
         );
 
         return user;
