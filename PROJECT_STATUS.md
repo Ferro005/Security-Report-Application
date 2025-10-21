@@ -9,20 +9,25 @@
 Aplicação desktop Flutter para gestão de incidentes de segurança com SQLite local, validação robusta e criptografia integrada.
 
 **Versão Atual:** 2.1.0 - Final Release  
-**Score de Segurança:** 87/100 (Production-Ready)
+**Score de Segurança:** 91/100 (Production-Ready)
 
 ---
 
 ## ✅ Funcionalidades Implementadas
 
 ### 🔐 Segurança
-- ✅ **Argon2id** para hashing de senhas (64MB RAM, 3 iterações, 4 threads)
+- ✅ **Argon2id** para hashing de senhas (64MB RAM, 3 iterações, 4 threads, SALT ÚNICO)
 - ✅ **AES-256** para criptografia de exports (PDF/CSV)
+- ✅ **JWT Session Management** com 8 horas de expiração e auto-refresh
+- ✅ **Password Expiration** com 90 dias de validade
+- ✅ **Password History** que previne reutilização das últimas 5 senhas
+- ✅ **Audit Trail com Limpeza Automática** (90 dias de retenção)
+- ✅ **Security Notifications** com 8 tipos de eventos
 - ✅ **ValidationChain 0.0.11** para sanitização e validação de inputs
 - ✅ **InputSanitizer** com proteção XSS, SQL injection, path traversal
 - ✅ **SecureLogger** com mascaramento automático de dados sensíveis
 - ✅ **flutter_secure_storage** para chaves de criptografia
-- ✅ Senhas fortes obrigatórias (12+ caracteres, complexidade)
+- ✅ Senhas fortes obrigatórias (8+ caracteres, complexidade)
 
 ### 🗄️ Base de Dados
 - ✅ SQLite com sqflite_common_ffi
@@ -56,6 +61,7 @@ Aplicação desktop Flutter para gestão de incidentes de segurança com SQLite 
 - ✅ **init_db.dart** - Inicializar database vazia
 - ✅ **sync_db.dart** - Sincronização manual runtime ↔ assets
 - ✅ **populate_users.dart** - Popular com dados de teste
+- ✅ **migrate_password_expiration.dart** - Aplicar schema para Password Policy
 
 ### ✅ Scripts Removidos na Limpeza v2.1.0 (Obsoletos/Perigosos)
 - ❌ migrate_to_argon2.dart (migração concluída, não mais necessário)
