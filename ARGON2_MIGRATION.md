@@ -1,8 +1,10 @@
-# 🔐 Migração BCrypt → Argon2id
+# 🔐 Migração BCrypt → Argon2id [ARQUIVADO]
 
-**Data**: 15 de Outubro de 2025  
-**Versão**: 2.0.0  
-**Status**: ✅ CONCLUÍDA
+**Data Original**: 15 de Outubro de 2025  
+**Versão Original**: 2.0.0  
+**Data Arquivamento**: 21 de Outubro de 2025  
+**Versão Atual**: v2.1.0  
+**Status**: ✅ ARQUIVADO - Migração Completa em v2.1.0
 
 ---
 

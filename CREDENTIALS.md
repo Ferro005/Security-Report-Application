@@ -1,20 +1,21 @@
 # 🔐 Credenciais de Acesso - Sistema RBAC
 
-## ✅ PASSWORD PADRÃO
+**Última Atualização:** 21 de Outubro de 2025  
+**Versão:** v2.1.0  
+**Status:** ✅ Production Ready
 
-**TODOS os utilizadores usam a mesma password**:
+## ✅ PASSWORD PADRÃO (Para Produção)
+
+Na produção, apenas um utilizador admin é criado na primeira execução:
+
 ```
-Senha@123456
+Email: admin@exemplo.com
+Password: Senha@123456
 ```
 
 ---
 
-## 👥 UTILIZADORES DISPONÍVEIS
-
-### 👑 Administradores (Acesso Total)
-
-#### 1. Henrique
-- **Email**: `henrique@exemplo.com`
+## 👥 UTILIZADORES DISPONÍVEIS (Produção)
 - **Password**: `Senha@123456`
 - **Permissões**:
   - ✅ Gerir utilizadores (alterar roles, eliminar contas)

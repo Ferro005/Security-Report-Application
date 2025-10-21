@@ -1,6 +1,6 @@
 # 📊 Status do Projeto - Security Report Application
 
-**Última Atualização:** 15 de Outubro de 2025
+**Última Atualização:** 21 de Outubro de 2025
 
 ---
 
@@ -8,8 +8,8 @@
 
 Aplicação desktop Flutter para gestão de incidentes de segurança com SQLite local, validação robusta e criptografia integrada.
 
-**Versão Atual:** 2.0.0  
-**Score de Segurança:** 88/100 (+42% desde v1.0)
+**Versão Atual:** 2.1.0 - Final Release  
+**Score de Segurança:** 87/100 (Production-Ready)
 
 ---
 

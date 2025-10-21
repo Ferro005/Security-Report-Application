@@ -1,5 +1,8 @@
 # Guia de Uso do Validation Chain 0.0.11
 
+**Última Atualização:** 21 de Outubro de 2025  
+**Status:** ✅ Alinhado com v2.1.0
+
 ## Visão Geral
 
 O `validation_chain` foi integrado no projeto para fornecer **validação e sanitização robustas** usando uma abordagem de **chain of responsibility**.

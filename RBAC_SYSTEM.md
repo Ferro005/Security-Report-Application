@@ -1,5 +1,9 @@
 # Sistema de Controlo de Acesso Baseado em Roles (RBAC)
 
+**Última Atualização:** 21 de Outubro de 2025  
+**Versão:** v2.1.0  
+**Status:** ✅ Production Ready
+
 ## 📋 Visão Geral
 
 Este documento descreve o sistema de controlo de acesso baseado em roles implementado na aplicação de Gestão de Incidentes.
