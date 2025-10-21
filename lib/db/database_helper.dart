@@ -4,12 +4,15 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+// ignore: unused_import
+import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
 import '../utils/secure_logger.dart';
-
+import '../services/encryption_key_service.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
+  final EncryptionKeyService _encryptionService = EncryptionKeyService.instance;
 
   DatabaseHelper._init();
 
@@ -20,38 +23,75 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB() async {
+    // Inicializar SQLCipher com suporte a criptografia
     sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
+
+    // Obter a factory com suporte a SQLCipher
+    final databaseFactoryWithCipher = createDatabaseFactoryFfi(
+      ffiInit: sqfliteFfiInit,
+    );
+    databaseFactory = databaseFactoryWithCipher;
 
     // Security: Use path_provider instead of environment variable
     final dir = await getApplicationDocumentsDirectory();
     final path = join(dir.path, 'gestao_incidentes.db');
-    
+
     // Security: Validate canonical path
     final canonicalPath = File(path).absolute.path;
     if (!canonicalPath.startsWith(dir.path)) {
       throw Exception('SECURITY: Invalid database path detected');
     }
 
-    if (!File(path).existsSync()) {
-      final data = await rootBundle.load('assets/db/gestao_incidentes.db');
-      final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-      await File(path).writeAsBytes(bytes, flush: true);
+    // Obter a chave de criptografia do serviço seguro
+    final password = await _encryptionService.getDatabasePassword();
+
+    // Verificar se o banco já existe
+    final dbExists = File(path).existsSync();
+
+    if (!dbExists) {
+      // Se não existe, copiar o banco de assets (se necessário)
+      try {
+        final data = await rootBundle.load('assets/db/gestao_incidentes.db');
+        final bytes =
+            data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+        await File(path).writeAsBytes(bytes, flush: true);
+        SecureLogger.database('Database copied from assets');
+      } catch (e) {
+        SecureLogger.warning(
+            'Database not found in assets, will create new one: $e');
+      }
     }
 
-    return await databaseFactory.openDatabase(
+    // Abrir banco com criptografia
+    final db = await databaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(
         version: 1,
-        onConfigure: _onConfigure,
+        onConfigure: (db) async => await _onConfigureEncrypted(db, password),
         onCreate: _onCreate,
         onOpen: _onOpen,
       ),
     );
+
+    SecureLogger.database('Encrypted database initialized successfully');
+    return db;
   }
 
-  Future _onConfigure(Database db) async {
+  Future _onConfigureEncrypted(Database db, String password) async {
+    // Configurar a chave de criptografia ANTES de qualquer outra operação
+    await db.execute("PRAGMA key = '$password';");
+
+    // Configurar parâmetros do SQLCipher para melhor performance/segurança
+    await db.execute('PRAGMA cipher_page_size = 4096;');
+    await db.execute('PRAGMA kdf_iter = 64000;');
+    await db.execute('PRAGMA cipher_hmac_algorithm = HMAC_SHA512;');
+    await db.execute('PRAGMA cipher_kdf_algorithm = PBKDF2_HMAC_SHA512;');
+
+    // Ativar foreign keys
     await db.execute('PRAGMA foreign_keys = ON;');
+
+    SecureLogger.database(
+        'Database encryption configured (AES-256, PBKDF2-SHA512, 64k iterations)');
   }
 
   Future _onCreate(Database db, int version) async {
@@ -103,11 +143,14 @@ class DatabaseHelper {
     if (!allowedTables.contains(table.toLowerCase())) {
       throw ArgumentError('Invalid table name: $table');
     }
-    
+
     final db = await database;
     // PRAGMA doesn't support placeholders, but table name is validated via whitelist
     final rows = await db.rawQuery("PRAGMA table_info('$table')");
-    return rows.map((r) => r['name']?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+    return rows
+        .map((r) => r['name']?.toString() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   /// Sync runtime database back to assets (development only)
@@ -117,24 +160,29 @@ class DatabaseHelper {
     try {
       final dir = await getApplicationDocumentsDirectory();
       final runtimePath = join(dir.path, 'gestao_incidentes.db');
-      
+
       // Only sync in debug mode
       if (!const bool.fromEnvironment('dart.vm.product')) {
         // Get project root (assuming we're in build output)
         // This won't work in release builds, which is intentional
         final projectRoot = Directory.current.path;
-        final assetsPath = join(projectRoot, 'assets', 'db', 'gestao_incidentes.db');
-        
+        final assetsPath =
+            join(projectRoot, 'assets', 'db', 'gestao_incidentes.db');
+
         if (File(runtimePath).existsSync()) {
           await File(runtimePath).copy(assetsPath);
           SecureLogger.database('Database synced to assets/db/');
-          
+
           // Auto commit (opt-in only for security)
           if (enableAutoPush) {
-            SecureLogger.warning('SECURITY WARNING: Auto-push is enabled. This should only be used in development.');
+            SecureLogger.warning(
+                'SECURITY WARNING: Auto-push is enabled. This should only be used in development.');
             try {
-              final timestamp = DateTime.now().toIso8601String().substring(0, 19).replaceAll(':', '-');
-              
+              final timestamp = DateTime.now()
+                  .toIso8601String()
+                  .substring(0, 19)
+                  .replaceAll(':', '-');
+
               // Git add with timeout
               final addResult = await Process.run(
                 'git',
@@ -144,7 +192,7 @@ class DatabaseHelper {
                 const Duration(seconds: 10),
                 onTimeout: () => throw TimeoutException('Git add timeout'),
               );
-              
+
               if (addResult.exitCode == 0) {
                 // Git commit with timeout
                 final commitResult = await Process.run(
@@ -155,10 +203,10 @@ class DatabaseHelper {
                   const Duration(seconds: 10),
                   onTimeout: () => throw TimeoutException('Git commit timeout'),
                 );
-                
+
                 if (commitResult.exitCode == 0) {
                   SecureLogger.info('Auto-commit created');
-                  
+
                   // Git push with timeout
                   final pushResult = await Process.run(
                     'git',
@@ -168,17 +216,19 @@ class DatabaseHelper {
                     const Duration(seconds: 30),
                     onTimeout: () => throw TimeoutException('Git push timeout'),
                   );
-                  
+
                   if (pushResult.exitCode == 0) {
                     SecureLogger.info('Auto-push to GitHub completed');
                     SecureLogger.database('DB updated in repository');
                   } else {
-                    SecureLogger.warning('Push failed - execute manually: git push origin main');
+                    SecureLogger.warning(
+                        'Push failed - execute manually: git push origin main');
                   }
                 } else {
                   final stderr = commitResult.stderr.toString();
                   if (stderr.contains('nothing to commit')) {
-                    SecureLogger.info('No changes to commit (DB already synced)');
+                    SecureLogger.info(
+                        'No changes to commit (DB already synced)');
                   } else {
                     SecureLogger.warning('Commit failed');
                   }
@@ -190,7 +240,8 @@ class DatabaseHelper {
             }
           } else {
             SecureLogger.info('Auto-push disabled for security.');
-            SecureLogger.info('To enable, use: syncToAssets(enableAutoPush: true)');
+            SecureLogger.info(
+                'To enable, use: syncToAssets(enableAutoPush: true)');
             SecureLogger.info('Reminder: Commit manually if needed.');
           }
         }
