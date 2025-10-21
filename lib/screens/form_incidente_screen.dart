@@ -138,7 +138,7 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
                     const SizedBox(height: 10),
                     if (isAdmin)
                       DropdownButtonFormField<int?>(
-                        value: tecnicoSelecionado,
+                        initialValue: tecnicoSelecionado,
                         items: [
                           const DropdownMenuItem<int?>(value: null, child: Text('— Nenhum técnico —')),
                           ...tecnicos.map((t) => DropdownMenuItem<int?>(

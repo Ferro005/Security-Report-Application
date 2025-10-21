@@ -74,16 +74,19 @@ class _GestaoUsersScreenState extends State<GestaoUsersScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Role atual: $currentRole'),
+            Text('Role atual: ${_getRoleDisplayName(currentRole)}'),
             const SizedBox(height: 16),
             const Text('Escolha novo role:'),
             const SizedBox(height: 8),
             ...['admin', 'tecnico', 'user'].map((role) {
-              return RadioListTile<String>(
+              final selected = role == currentRole;
+              return ListTile(
+                leading: Icon(
+                  selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                  color: selected ? _getRoleColor(role) : null,
+                ),
                 title: Text(_getRoleDisplayName(role)),
-                value: role,
-                groupValue: currentRole,
-                onChanged: (value) => Navigator.pop(context, value),
+                onTap: () => Navigator.pop(context, role),
               );
             }),
           ],

@@ -89,7 +89,7 @@ class PerfilScreen extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      backgroundColor: _getRoleColor(user.tipo).withOpacity(0.2),
+                      backgroundColor: _getRoleColor(user.tipo).withValues(alpha: 0.2),
                     ),
                   ],
                 ),

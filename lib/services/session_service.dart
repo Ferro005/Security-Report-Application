@@ -13,7 +13,15 @@ class SessionService {
 
   /// Inicializar secret key (chama apenas uma vez)
   static Future<void> initializeSecretKey() async {
-    String? secretKey = await _storage.read(key: _secretKeyName);
+    final secretKey = await _storage.read(key: _secretKeyName);
+    if (secretKey == null || secretKey.isEmpty) {
+      // Generate a random 256-bit key and store
+      final rnd = Random.secure();
+      final values = List<int>.generate(32, (_) => rnd.nextInt(256));
+      final newKey = base64Url.encode(values);
+      await _storage.write(key: _secretKeyName, value: newKey);
+      SecureLogger.audit('jwt_secret_initialized', 'JWT secret key created');
+    }
   }
 
   /// Obter secret key do armazenamento seguro
