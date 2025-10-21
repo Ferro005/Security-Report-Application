@@ -3,12 +3,12 @@
 **Última Atualização:** 21 de Outubro de 2025  
 **Versão:** v2.1.0 - Production Ready
 
-## � Estado Atual: 87/100 ⭐
+## � Estado Atual: 91/100 ⭐
 
 **Score:** Production-Ready
 **Tipo:** Final Audit & Cleanup Completed
 
-A aplicação já possui excelentes proteções, mas aqui estão melhorias recomendadas para alcançar **98+/100**.
+A aplicação já possui excelentes proteções. Os itens abaixo listam o que foi implementado em v2.1.0 e o que permanece recomendado para futuras versões (por exemplo 2FA).
 
 ---
 

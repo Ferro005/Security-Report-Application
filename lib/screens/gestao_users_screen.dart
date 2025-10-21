@@ -247,7 +247,7 @@ class _GestaoUsersScreenState extends State<GestaoUsersScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: DropdownButtonFormField<String>(
-                    value: filtroRole,
+                    initialValue: filtroRole,
                     decoration: const InputDecoration(
                       labelText: 'Filtrar por Role',
                       prefixIcon: Icon(Icons.filter_list),

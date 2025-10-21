@@ -16,7 +16,7 @@
 - **Vulnerabilidades Altas**: 0 ✅ (8 corrigidas)
 - **Vulnerabilidades Médias**: 11 🟡 (1 corrigida)
 - **Vulnerabilidades Baixas**: 5 🔵 (1 corrigida)
-- **Score de Segurança**: 87/100 ✅ (antes: 62/100)
+-- **Score de Segurança**: 91/100 ✅ (antes: 62/100)
 - **Build Status**: ✅ Release build successful (0 errors, 0 warnings)
 
 ### Correções Implementadas (Fase 1 + 2 + v2.1.0)
