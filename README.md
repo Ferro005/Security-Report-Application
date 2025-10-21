@@ -150,7 +150,8 @@ Para criar novos usuários, utilize a interface administrativa após o login ou 
 
 ### Localização
 - **Template**: Criado automaticamente na primeira execução
-- **Runtime**: `%APPDATA%\gestao_incidentes.db` (path seguro via path_provider)
+- **Runtime (Windows)**: `%USERPROFILE%\Documents\gestao_incidentes.db` (evita OneDrive)
+- **Runtime (Outros)**: Diretório de documentos da aplicação (path_provider)
 - **Nota**: Database não é mais versionada no Git por questões de segurança
 
 ### Schema Principal

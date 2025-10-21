@@ -32,9 +32,9 @@ class DatabaseHelper {
     );
     databaseFactory = databaseFactoryWithCipher;
 
-    // Security: Use path_provider instead of environment variable
-    final dir = await getApplicationDocumentsDirectory();
-    final path = join(dir.path, 'gestao_incidentes.db');
+  // Resolve a safe database directory
+  final dir = await _getPreferredDatabaseDirectory();
+  final path = join(dir.path, 'gestao_incidentes.db');
 
     // Security: Validate canonical path
     final canonicalPath = File(path).absolute.path;
@@ -75,6 +75,30 @@ class DatabaseHelper {
 
     SecureLogger.database('Encrypted database initialized successfully');
     return db;
+  }
+
+  // Prefer Windows local Documents over OneDrive; otherwise use application documents directory
+  Future<Directory> _getPreferredDatabaseDirectory() async {
+    try {
+      if (Platform.isWindows) {
+        final userProfile = Platform.environment['USERPROFILE'];
+        if (userProfile != null && userProfile.isNotEmpty) {
+          // Use physical local Documents folder, avoiding OneDrive redirection
+          final docsPath = join(userProfile, 'Documents');
+          final docsDir = Directory(docsPath);
+          if (!await docsDir.exists()) {
+            await docsDir.create(recursive: true);
+          }
+          return docsDir;
+        }
+      }
+    } catch (e, st) {
+      SecureLogger.warning('Falling back to app documents directory: $e');
+      SecureLogger.debug('Docs dir resolution stack', e, st);
+    }
+
+    // Fallback (all platforms): application documents directory
+    return await getApplicationDocumentsDirectory();
   }
 
   Future _onConfigureEncrypted(Database db, String password) async {
@@ -158,7 +182,7 @@ class DatabaseHelper {
   /// Note: Auto-push disabled for security - manual commit required
   Future<void> syncToAssets({bool enableAutoPush = false}) async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
+      final dir = await _getPreferredDatabaseDirectory();
       final runtimePath = join(dir.path, 'gestao_incidentes.db');
 
       // Only sync in debug mode
