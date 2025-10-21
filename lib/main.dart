@@ -6,6 +6,7 @@ import 'services/security_service.dart';
 import 'services/windows_secure_window.dart';
 import 'package:window_manager/window_manager.dart';
 import 'services/auditoria_service.dart';
+import 'services/setup_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +35,8 @@ class _AppState extends State<App> {
       SecurityService.initSecurity(context);
       // Iniciar limpeza automática de auditoria (semanal por padrão)
       AuditoriaService.startAutoCleanup();
+      // Garantir schema e admin por omissão na primeira execução
+      SetupService.initialize();
     });
   }
 

@@ -134,6 +134,8 @@ Na primeira execução, a aplicação cria usuários padrão para acesso inicial
 
 Para criar novos usuários, utilize a interface administrativa após o login ou os scripts de gestão em `tools/`.
 
+Nota: Na primeira execução, a base de dados é criada vazia e é gerado apenas o utilizador administrador padrão (`admin@exemplo.com`). As restantes contas de teste só são criadas se executar manualmente os scripts de `tools/` (por exemplo, `init_db.dart`/`populate_users.dart`).
+
 ### Segurança
 - ✅ Passwords protegidas com **Argon2id** (memory-hard, 64MB RAM, 3 iterações)
 - ✅ Política de senha: expiração (90 dias) e histórico (últimas 5) aplicados
