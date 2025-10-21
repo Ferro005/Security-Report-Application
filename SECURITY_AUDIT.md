@@ -9,6 +9,22 @@
 
 ---
 
+## ✅ Atualizações aplicadas em v2.1.0 (errata do relatório)
+
+As seguintes recomendações do relatório original foram implementadas e estão em produção:
+
+- Exportação segura: PDF/CSV agora são criptografados (AES‑256) em `ExportService` (arquivos `.encrypted`)
+- Rate limiting: além do bloqueio por utilizador (5 tentativas/30s), foi adicionado limitador global in‑memory (20 tentativas/15 min por operação)
+- Logs inseguros: `print()` substituídos por `SecureLogger` com mascaramento de dados
+- Auto‑push Git: desativado por padrão; opção opt‑in controlada no método `syncToAssets()` com timeouts
+- Timeouts: operações Git no `DatabaseHelper.syncToAssets()` usam timeouts (10s add/commit, 30s push)
+- Path traversal: DB no Windows em `%USERPROFILE%\\Documents` (evita OneDrive) e validação canónica do caminho
+
+Planeado para v2.2.0:
+
+- 2FA (TOTP) opcional por utilizador
+- Rate limiting por IP (quando aplicável)
+
 ## 📊 Resumo Executivo
 
 ### Status Geral

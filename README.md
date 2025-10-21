@@ -4,7 +4,7 @@ Aplicação desktop standalone para gestão de incidentes de segurança desenvol
 
 ## 📋 Sobre o Projeto
 
-Sistema completo de gestão de incidentes de segurança com autenticação Argon2id, base de dados SQLite local criptografada, e funcionalidades avançadas de relatórios e auditoria.
+Sistema completo de gestão de incidentes de segurança com autenticação Argon2id, base de dados SQLite local criptografada, gestão de sessões com JWT, e funcionalidades avançadas de relatórios, auditoria e notificações in‑app.
 
 ### ✨ Funcionalidades Principais
 
@@ -139,7 +139,7 @@ Nota: Na primeira execução, a base de dados é criada vazia e é gerado apenas
 ### Segurança
 - ✅ Passwords protegidas com **Argon2id** (memory-hard, 64MB RAM, 3 iterações)
 - ✅ Política de senha: expiração (90 dias) e histórico (últimas 5) aplicados
-- ✅ Validação de senha forte mínima (8+ caracteres, maiúsculas, minúsculas, números)
+- ✅ Validação de senha forte mínima (12+ caracteres, maiúsculas, minúsculas, números e caractere especial)
 - ✅ Blacklist de senhas comuns
 - ✅ Proteção contra tentativas de login excessivas (account lockout)
 - ✅ Auditoria completa de autenticação
@@ -153,9 +153,9 @@ Nota: Na primeira execução, a base de dados é criada vazia e é gerado apenas
 
 ### Localização
 - **Template**: Criado automaticamente na primeira execução
-- **Runtime (Windows)**: `%USERPROFILE%\Documents\gestao_incidentes.db` (evita OneDrive)
+- **Runtime (Windows)**: `%USERPROFILE%\Documents\gestao_incidentes.db` (evita redireção para OneDrive)
 - **Runtime (Outros)**: Diretório de documentos da aplicação (path_provider)
-- **Nota**: Database não é mais versionada no Git por questões de segurança
+- **Nota**: Database não é versionada no Git por questões de segurança
 
 ### Schema Principal
 
@@ -256,7 +256,7 @@ flutter test
 flutter build windows --debug
 ```
 
-**Status Atual**: ✅ 0 erros, 0 warnings, todas dependências atualizadas
+**Status Atual**: ✅ Sem erros; apenas avisos de depreciação informativos (UI); dependências atualizadas
 
 ## 📝 Qualidade de Código
 
@@ -295,13 +295,13 @@ flutter build windows --debug
 - ✅ Documentação sincronizada
 - ✅ Build release sem erros (0 warnings)
 
-**Score de Segurança**: 62/100 → **87/100** (+40%)
+**Score de Segurança**: 62/100 → **91/100**
 
-### Documentação Adicionada
-- 📄 `SECURITY_AUDIT.md` - Relatório final de auditoria v2.1.0
-- 📄 `SECURITY_FIXES_APPLIED.md` - Correções implementadas
-- 📄 `DATABASE_ENCRYPTION.md` - Criptografia AES-256 com SQLCipher
-- 📄 `VALIDATION_CHAIN_USAGE.md` - Sistema de validação
+### Documentação Disponível
+- 📄 `SECURITY_AUDIT.md` - Relatório de auditoria (atualizado com v2.1.0)
+- 📄 `SECURITY_IMPROVEMENTS.md` - Melhorias de segurança (estado e próximos passos)
+- 📄 `SECURITY_IMPROVEMENTS_IMPLEMENTATION.md` - Detalhes de implementação v2.1.0
+- 📄 `SESSION_COMPLETION_REPORT.md` - Resumo final da sessão
 
 ## 🤝 Contribuindo
 
