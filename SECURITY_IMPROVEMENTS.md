@@ -14,116 +14,63 @@ A aplicação já possui excelentes proteções, mas aqui estão melhorias recom
 
 ## 🔴 CRÍTICAS (Implementar IMEDIATAMENTE)
 
-### 1. **Salt Único por Utilizador**
-**Severidade**: CRÍTICA  
-**Problema Atual**: Todos os utilizadores usam o mesmo salt (`'somesalt'`)
-**Risco**: Se um atacante obtiver acesso ao código, pode fazer rainbow table attacks para todos os utilizadores de uma vez
+### 1. **Salt Único por Utilizador** ✅ JÁ IMPLEMENTADO
 
-**Solução**:
+**Status**: ✅ COMPLETO EM v2.1.0  
+**Problema Original**: Todos os utilizadores usavam o mesmo salt (`'somesalt'`)
+**Solução Implementada**: Cada password tem salt único e aleatório (16 bytes)
+
+**Código Atual** (lib/services/auth_service.dart):
 ```dart
-// lib/services/auth_service.dart
-import 'dart:math';
-
-static Future<String> hashPassword(String senha) async {
-  // Gerar salt único e aleatório (16 bytes)
-  final random = Random.secure();
-  final saltBytes = Uint8List(16);
-  for (int i = 0; i < saltBytes.length; i++) {
-    saltBytes[i] = random.nextInt(256);
-  }
-  
-  final parameters = Argon2Parameters(
-    Argon2Parameters.ARGON2_id,
-    saltBytes,  // ✅ Salt único
-    version: Argon2Parameters.ARGON2_VERSION_13,
-    iterations: 3,
-    memory: 65536,
-    lanes: 4,
-  );
-  
-  final argon2 = Argon2BytesGenerator();
-  argon2.init(parameters);
-  
-  final passwordBytes = utf8.encode(senha);
-  final result = Uint8List(32);
-  argon2.generateBytes(passwordBytes, result, 0, result.length);
-  
-  // Formato: $argon2id$<salt_base64>$<hash_base64>
-  final hash = '\$argon2id\$${base64.encode(saltBytes)}\$${base64.encode(result)}';
-  return hash;
+// ✅ Gerar salt único e aleatório (16 bytes)
+final random = Random.secure();
+final saltBytes = Uint8List(16);
+for (int i = 0; i < saltBytes.length; i++) {
+  saltBytes[i] = random.nextInt(256);
 }
 
-static Future<bool> verifyPassword(String senha, String hash) async {
-  if (hash.startsWith(r'$argon2')) {
-    // Parse: $argon2id$<salt>$<hash>
-    final parts = hash.split('\$');
-    if (parts.length < 4) return false;
-    
-    final saltBytes = base64.decode(parts[2]);
-    final storedHash = base64.decode(parts[3]);
-    
-    final parameters = Argon2Parameters(
-      Argon2Parameters.ARGON2_id,
-      saltBytes,  // ✅ Usar salt do hash
-      version: Argon2Parameters.ARGON2_VERSION_13,
-      iterations: 3,
-      memory: 65536,
-      lanes: 4,
-    );
-    
-    final argon2 = Argon2BytesGenerator();
-    argon2.init(parameters);
-    
-    final passwordBytes = utf8.encode(senha);
-    final result = Uint8List(32);
-    argon2.generateBytes(passwordBytes, result, 0, result.length);
-    
-    // Comparação constant-time
-    return _constantTimeCompare(result, storedHash);
-  }
-  // ... resto do código
-}
+// ✅ Usar salt único para cada password
+final parameters = Argon2Parameters(
+  Argon2Parameters.ARGON2_id,
+  saltBytes,  // ✅ Salt único por utilizador
+  version: Argon2Parameters.ARGON2_VERSION_13,
+  iterations: 3,
+  memory: 65536,
+  lanes: 4,
+);
 
-static bool _constantTimeCompare(Uint8List a, Uint8List b) {
-  if (a.length != b.length) return false;
-  int diff = 0;
-  for (int i = 0; i < a.length; i++) {
-    diff |= a[i] ^ b[i];
-  }
-  return diff == 0;
-}
+// Formato: $argon2id$<salt_base64>$<hash_base64>
+final hash = '\$argon2id\$${base64.encode(saltBytes)}\$${base64.encode(result)}';
 ```
 
-**Impacto**: ⭐ +3 pontos no security score
+**Impacto**: ✅ Já implementado (+3 pontos)
 
 ---
 
-### 2. **Autenticação de Dois Fatores (2FA)**
+### 2. **Autenticação de Dois Fatores (2FA)** ❌ RECOMENDADO
+
+**Status**: ❌ NÃO IMPLEMENTADO (Recomendado para futuro)  
 **Severidade**: ALTA  
-**Problema Atual**: Apenas password (single factor)
-**Risco**: Password comprometida = acesso total
+**Motivo**: Aumentaria significativamente a segurança mesmo se password comprometida
+**Impacto**: ⭐ +3 pontos no security score
 
 **Solução - TOTP (Time-based One-Time Password)**:
 
-1. Adicionar dependência:
+Adicionar dependências:
 ```yaml
-# pubspec.yaml
 dependencies:
   otp: ^3.1.4
   qr_flutter: ^4.1.0
 ```
 
-2. Criar serviço 2FA:
+Criar serviço 2FA (lib/services/two_factor_service.dart):
 ```dart
-// lib/services/two_factor_service.dart
 import 'package:otp/otp.dart';
 import 'dart:math';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class TwoFactorService {
-  static const _storage = FlutterSecureStorage();
-  
   /// Gera secret 2FA para utilizador
   static String generateSecret() {
     final random = Random.secure();
@@ -145,10 +92,9 @@ class TwoFactorService {
   
   /// Verifica código TOTP
   static bool verifyTOTP(String secret, String code) {
-    final expectedCode = generateTOTP(secret);
+    final now = DateTime.now().millisecondsSinceEpoch;
     
     // Verificar código atual ± 1 intervalo (tolerância de 30s)
-    final now = DateTime.now().millisecondsSinceEpoch;
     for (int offset = -1; offset <= 1; offset++) {
       final time = now + (offset * 30000);
       final testCode = OTP.generateTOTPCodeString(
@@ -168,98 +114,14 @@ class TwoFactorService {
     return false;
   }
   
-  static bool _constantTimeCompare(String a, String b) {
-    if (a.length != b.length) return false;
-    int diff = 0;
-    for (int i = 0; i < a.length; i++) {
-      diff |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
-    }
-    return diff == 0;
-  }
-  
-  /// Gera URI otpauth:// para QR code
-  static String getOTPAuthUri(String email, String secret) {
-    final issuer = Uri.encodeComponent('Security Report App');
-    final account = Uri.encodeComponent(email);
-    return 'otpauth://totp/$issuer:$account?secret=$secret&issuer=$issuer&algorithm=SHA256&digits=6&period=30';
-  }
-  
-  /// Salva secret 2FA para utilizador
-  static Future<void> enableTwoFactor(int userId, String secret) async {
-    final db = await DatabaseHelper.instance.database;
-    
-    // Adicionar coluna se não existir
-    final cols = await DatabaseHelper.instance.tableColumns('usuarios');
-    if (!cols.contains('totp_secret')) {
-      await db.execute('ALTER TABLE usuarios ADD COLUMN totp_secret TEXT');
-      await db.execute('ALTER TABLE usuarios ADD COLUMN totp_enabled INTEGER DEFAULT 0');
-    }
-    
-    await db.update(
-      'usuarios',
-      {'totp_secret': secret, 'totp_enabled': 1},
-      where: 'id = ?',
-      whereArgs: [userId],
-    );
-    
-    SecureLogger.audit('2fa_enabled', 'Utilizador $userId ativou 2FA');
-  }
-  
-  /// Desabilita 2FA
-  static Future<void> disableTwoFactor(int userId) async {
-    final db = await DatabaseHelper.instance.database;
-    await db.update(
-      'usuarios',
-      {'totp_secret': null, 'totp_enabled': 0},
-      where: 'id = ?',
-      whereArgs: [userId],
-    );
-    
-    SecureLogger.audit('2fa_disabled', 'Utilizador $userId desativou 2FA');
-  }
+  // ... resto do código
 }
 ```
 
-3. Atualizar tela de perfil:
-```dart
-// lib/screens/perfil_screen.dart
-ElevatedButton.icon(
-  onPressed: () async {
-    final secret = TwoFactorService.generateSecret();
-    final uri = TwoFactorService.getOTPAuthUri(user.email, secret);
-    
-    // Mostrar QR code
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Configurar 2FA'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            QrImageView(data: uri, size: 200),
-            SizedBox(height: 16),
-            Text('Escaneie com Google Authenticator ou similar'),
-            SizedBox(height: 16),
-            TextField(
-              decoration: InputDecoration(labelText: 'Código de verificação'),
-              onSubmitted: (code) async {
-                if (TwoFactorService.verifyTOTP(secret, code)) {
-                  await TwoFactorService.enableTwoFactor(user.id, secret);
-                  Navigator.pop(context);
-                  _mostrarSnack('2FA ativado com sucesso!');
-                } else {
-                  _mostrarErro('Código incorreto');
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  },
-  icon: Icon(Icons.security),
-  label: Text('Ativar 2FA'),
-)
+**Próximas Ações**:
+1. Implementar esta feature em v2.2.0
+2. Tornar 2FA opcional por utilizador (no perfil)
+3. Suportar Google Authenticator, Authy, etc.
 ```
 
 4. Atualizar login:
@@ -315,66 +177,50 @@ static Future<User?> verifyTwoFactor(int userId, String code) async {
 
 ---
 
-### 3. **Rate Limiting Global**
+### 3. **Rate Limiting Global** ✅ PARCIALMENTE IMPLEMENTADO
+
+**Status**: ✅ IMPLEMENTADO POR UTILIZADOR (Rate limiting global pendente)  
 **Severidade**: ALTA  
-**Problema Atual**: Rate limiting apenas por utilizador (5 tentativas)
-**Risco**: Ataques distribuídos (testar múltiplas contas)
+**Problema**: Rate limiting apenas por utilizador (5 tentativas por conta)
+**Risco**: Ataques distribuídos (testar múltiplas contas simultaneamente)
 
-**Solução**:
+**Implementação Atual** (auth_service.dart):
 ```dart
-// lib/services/rate_limiter.dart
-class RateLimiter {
-  static final Map<String, List<DateTime>> _attempts = {};
-  static const _maxAttempts = 20; // 20 tentativas totais
-  static const _windowDuration = Duration(minutes: 15);
-  
-  /// Verifica se operação está bloqueada
-  static bool isBlocked(String operation) {
-    _cleanOldAttempts(operation);
-    
-    final attempts = _attempts[operation] ?? [];
-    return attempts.length >= _maxAttempts;
+// ✅ Rate limiting por utilizador (5 tentativas)
+if (cols.contains('failed_attempts')) {
+  final fails = (existingUser['failed_attempts'] as int?) ?? 0;
+  if (fails >= 5) {
+    // Account lockout
+    await AuditoriaService.registar(
+      userId: existingUser['id'],
+      acao: 'login_bloqueado',
+      detalhe: 'Múltiplas tentativas falhadas',
+    );
+    throw Exception('Conta bloqueada após 5 tentativas. Contacte admin.');
   }
-  
-  /// Registra tentativa
-  static void recordAttempt(String operation) {
-    _attempts.putIfAbsent(operation, () => []);
-    _attempts[operation]!.add(DateTime.now());
-    _cleanOldAttempts(operation);
-    
-    SecureLogger.info('Rate limit: ${_attempts[operation]!.length}/$_maxAttempts para $operation');
-  }
-  
-  static void _cleanOldAttempts(String operation) {
-    final attempts = _attempts[operation];
-    if (attempts == null) return;
-    
-    final cutoff = DateTime.now().subtract(_windowDuration);
-    attempts.removeWhere((time) => time.isBefore(cutoff));
-  }
-  
-  /// Reseta contador (admin only)
-  static void reset(String operation) {
-    _attempts.remove(operation);
-    SecureLogger.audit('rate_limit_reset', 'Rate limit resetado para $operation');
-  }
-}
-
-// Usar no login
-static Future<User?> login(String email, String senha) async {
-  // Rate limiting global
-  if (RateLimiter.isBlocked('login')) {
-    SecureLogger.warning('Rate limit excedido para login');
-    throw Exception('Muitas tentativas de login. Tente novamente em 15 minutos.');
-  }
-  
-  RateLimiter.recordAttempt('login');
-  
-  // ... resto do código ...
+  // Incrementar contador
+  payload['failed_attempts'] = fails + 1;
 }
 ```
 
-**Impacto**: ⭐ +1 ponto no security score
+**Recomendado - Rate Limiting Global**:
+```dart
+// Adicionar rate limiting global por IP/operation
+class RateLimiter {
+  static final Map<String, List<DateTime>> _attempts = {};
+  static const _maxAttempts = 20; // Máximo global
+  static const _windowDuration = Duration(minutes: 15);
+  
+  static bool isBlocked(String operation) {
+    _cleanOldAttempts(operation);
+    final attempts = _attempts[operation] ?? [];
+    return attempts.length >= _maxAttempts;
+  }
+}
+```
+
+**Impacto**: ✅ Implementado por utilizador (+2 pontos)  
+**Próximo**: Implementar rate limiting global por IP em v2.2.0
 
 ---
 
@@ -820,21 +666,38 @@ static Future<void> createEncryptedBackup() async {
 
 ---
 
-## ✅ O Que Já Está Excelente
+## ✅ O Que Já Está Excelente (v2.1.0)
 
-1. ✅ Argon2id com configuração adequada
+1. ✅ Argon2id com salt ÚNICO por utilizador
 2. ✅ Validação e sanitização (validation_chain)
 3. ✅ RBAC completo
-4. ✅ Auditoria básica
-5. ✅ Rate limiting por utilizador
-6. ✅ Secure logging
+4. ✅ Auditoria completa com logging seguro
+5. ✅ Rate limiting por utilizador (account lockout após 5 tentativas)
+6. ✅ Secure logging com mascaramento de dados
 7. ✅ Proteção XSS/SQL injection
-8. ✅ AES-256 para exports
+8. ✅ AES-256 para exports e database
 9. ✅ Input validation robusta
-10. ✅ Constant-time comparison
+10. ✅ Constant-time comparison para passwords
+11. ✅ SQLCipher para database encryption
+12. ✅ FlutterSecureStorage para chaves criptográficas
 
 ---
 
-**Score Projetado com Melhorias**: **100/100** 🏆
+## 🎯 Próximas Prioridades (v2.2.0)
 
-Implemente as melhorias críticas primeiro (Semana 1) para alcançar **98/100** rapidamente!
+| Melhoria | Status | Impacto | Prioridade |
+|----------|--------|---------|-----------|
+| 2FA (TOTP) | ❌ Recomendado | +3 | 🔴 ALTA |
+| Rate limiting global | ✅ Por utilizador | +1 | 🔴 MÉDIA |
+| Session JWT | ❌ Recomendado | +2 | 🟠 BAIXA |
+| Password expiry | ❌ Recomendado | +1 | 🟡 BAIXA |
+| Biometric auth | ❌ Recomendado | +1 | 🔵 FUTURO |
+
+**Score Atual**: 87/100 ⭐  
+**Score com Recomendações**: 98-100/100 🏆
+
+---
+
+**Status Final**: ✅ v2.1.0 Production Ready
+
+Implemente o 2FA (v2.2.0) para alcançar **98/100** rapidamente!
