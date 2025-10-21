@@ -5,6 +5,7 @@ import 'screens/login_screen.dart';
 import 'services/security_service.dart';
 import 'services/windows_secure_window.dart';
 import 'package:window_manager/window_manager.dart';
+import 'services/auditoria_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +32,8 @@ class _AppState extends State<App> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SecurityService.initSecurity(context);
+      // Iniciar limpeza automática de auditoria (semanal por padrão)
+      AuditoriaService.startAutoCleanup();
     });
   }
 

@@ -63,7 +63,7 @@ static Future<void> startAutoCleanup({int cleanupIntervalHours = 168}) async { /
 ### ❌ Recomendado para v2.2.0
 | 2FA (TOTP) | 🔴 ALTA | +3 pontos | Médio |
 | Rate limiting global por IP (se aplicável) | 🟠 MÉDIA | +1 ponto | Baixo |
-| UI: Centro de notificações | 🟠 MÉDIA | +1 ponto | Médio |
+| UI: Centro de notificações (avançado) | 🟠 MÉDIA | +1 ponto | Médio |
 **Status Final**: ✅ **v2.1.0 Production Ready | 91/100 Security Score**
 
 // ✅ Usar salt único para cada password
@@ -691,6 +691,7 @@ static Future<void> createEncryptedBackup() async {
 10. ✅ **Proteção XSS/SQL injection** - Validação rigorosa
 11. ✅ **AES-256** - Exports criptografados
 12. ✅ **Credential Manager** - Armazenamento seguro Windows
+13. ✅ **Notificações In-App** - Painel básico na UI (listar/ler todas)
 
 ---
 

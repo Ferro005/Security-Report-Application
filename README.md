@@ -17,6 +17,7 @@ Sistema completo de gestão de incidentes de segurança com autenticação Argon
 - 📄 **Exportação Segura**: Relatórios criptografados em PDF e CSV (AES-256)
 - 🔍 **Auditoria**: Log completo com mascaramento de dados sensíveis
 - 🛡️ **Input Sanitization**: Proteção contra XSS, SQL injection e path traversal
+- 🔔 **Notificações In-App**: Painel rápido de notificações (ícone no topo), com marcação como lidas
 
 ## 🚀 Tecnologias Utilizadas
 
@@ -219,6 +220,7 @@ dart run tools/populate_users.dart
 - Visualização de detalhes em dialog
 - Atribuição de técnicos (admin)
 - Estatísticas e gráficos
+ - Painel de Notificações (ícone de sino no topo; listar, atualizar e marcar todas como lidas)
 
 ### Gestão de Incidentes
 - Criação com categorização (TI, RH, Infraestrutura)

@@ -10,6 +10,8 @@ import 'tecnicos_screen.dart';
 import 'login_screen.dart';
 import '../services/export_service.dart';
 import 'dashboard_stats_screen.dart';
+import 'notifications_panel.dart';
+import '../services/notifications_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   final User user;
@@ -27,6 +29,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String filtroStatus = '';
   String filtroCategoria = '';
   String filtroRisco = '';
+  int _unreadCount = 0;
 
   final statusList = ['Todos', 'Pendente', 'Em Análise', 'Em andamento', 'Resolvido', 'Cancelado'];
   final categoriaList = ['Todas', 'TI', 'RH', 'Infraestrutura'];
@@ -36,6 +39,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _carregar();
+    _loadUnread();
   }
 
   Future<void> _carregar() async {
@@ -46,6 +50,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
       filtrados = lista;
       loading = false;
     });
+  }
+
+  Future<void> _loadUnread() async {
+    final count = await NotificationsService.countUnreadNotifications(widget.user.id);
+    if (mounted) {
+      setState(() => _unreadCount = count);
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => NotificationsPanel(userId: widget.user.id),
+    );
+    await _loadUnread();
   }
 
   void _mostrarSnack(String msg, {Color cor = Colors.green}) {
@@ -117,6 +140,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.person),
             tooltip: 'Perfil',
             onPressed: _abrirPerfil,
+          ),
+          // Notificações
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Stack(
+              alignment: Alignment.topRight,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications),
+                  tooltip: 'Notificações',
+                  onPressed: _openNotifications,
+                ),
+                if (_unreadCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 18),
+                      child: Text(
+                        _unreadCount > 99 ? '99+' : '$_unreadCount',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.bar_chart),
