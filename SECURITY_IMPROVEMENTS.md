@@ -224,28 +224,34 @@ class RateLimiter {
 
 ---
 
-## 🟠 ALTAS (Implementar em 1-2 semanas)
+## 🟠 ALTAS (Recomendado em 1-2 semanas)
 
-### 4. **Session Management Adequado**
-**Problema Atual**: Sem tokens de sessão, sem expiração
-**Risco**: Sessão permanece ativa indefinidamente
+### 4. **Session Management Adequado** ❌ RECOMENDADO
 
-**Solução - JWT Tokens**:
+**Status**: ❌ NÃO IMPLEMENTADO (Recomendado para v2.2.0)  
+**Severidade**: ALTA  
+**Problema**: Sem tokens de sessão explícitos, sessão permanece ativa indefinidamente
+**Risco**: Sessão hijacking, falta de refresh automático
+
+**Solução - JWT Tokens** (Implementar em v2.2.0):
+
+Usar biblioteca `dart_jsonwebtoken`:
 ```yaml
 dependencies:
   dart_jsonwebtoken: ^2.13.0
 ```
 
+Criar serviço de sessão:
 ```dart
 // lib/services/session_service.dart
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 
 class SessionService {
-  static const _secretKey = 'your-256-bit-secret'; // MOVER PARA flutter_secure_storage
+  // Secret key armazenado no flutter_secure_storage
   static const _tokenDuration = Duration(hours: 8);
   
-  /// Gera JWT token
-  static String generateToken(User user) {
+  /// Gera JWT token com expiração
+  static String generateToken(User user, String secretKey) {
     final jwt = JWT({
       'userId': user.id,
       'email': user.email,
@@ -254,57 +260,36 @@ class SessionService {
       'exp': DateTime.now().add(_tokenDuration).millisecondsSinceEpoch ~/ 1000,
     });
     
-    return jwt.sign(SecretKey(_secretKey), algorithm: JWTAlgorithm.HS256);
+    return jwt.sign(SecretKey(secretKey), algorithm: JWTAlgorithm.HS256);
   }
   
-  /// Verifica token
-  static Map<String, dynamic>? verifyToken(String token) {
+  /// Verifica e renova token automaticamente
+  static Map<String, dynamic>? verifyAndRefresh(String token, String secretKey) {
     try {
-      final jwt = JWT.verify(token, SecretKey(_secretKey));
+      final jwt = JWT.verify(token, SecretKey(secretKey));
       return jwt.payload as Map<String, dynamic>;
     } on JWTExpiredException {
       SecureLogger.warning('Token expirado');
       return null;
-    } on JWTException catch (e) {
-      SecureLogger.error('Token inválido', e);
-      return null;
     }
-  }
-  
-  /// Renova token
-  static String? refreshToken(String oldToken) {
-    final payload = verifyToken(oldToken);
-    if (payload == null) return null;
-    
-    // Só renova se falta menos de 1 hora para expirar
-    final exp = payload['exp'] as int;
-    final expiresAt = DateTime.fromMillisecondsSinceEpoch(exp * 1000);
-    final timeLeft = expiresAt.difference(DateTime.now());
-    
-    if (timeLeft.inHours < 1) {
-      final user = User(
-        id: payload['userId'],
-        email: payload['email'],
-        nome: '',
-        tipo: payload['role'],
-      );
-      return generateToken(user);
-    }
-    
-    return null;
   }
 }
 ```
 
-**Impacto**: ⭐ +2 pontos no security score
+**Impacto**: +2 pontos no security score  
+**Próximo**: Implementar em v2.2.0
 
 ---
 
-### 5. **Auditoria Avançada com Retenção**
-**Problema Atual**: Auditoria básica, sem limpeza automática
+### 5. **Auditoria Avançada com Retenção** ❌ RECOMENDADO
+
+**Status**: ✅ PARCIALMENTE IMPLEMENTADO (Limpeza pendente)  
+**Severidade**: MÉDIA  
+**Problema**: Auditoria básica implementada, mas sem limpeza automática
 **Risco**: Base de dados cresce indefinidamente
 
-**Solução**:
+**Recomendação - Adicionar Limpeza Automática** (v2.2.0):
+
 ```dart
 // lib/services/auditoria_service.dart
 static Future<void> cleanOldAudits() async {
@@ -321,84 +306,61 @@ static Future<void> cleanOldAudits() async {
   SecureLogger.info('Limpeza de auditoria: $deleted registros removidos');
 }
 
-// Agendar limpeza periódica
+// Agendar limpeza semanal
 static void scheduleCleanup() {
   Timer.periodic(Duration(days: 7), (_) async {
     await cleanOldAudits();
   });
 }
-
-// Exportar auditoria para arquivo
-static Future<File> exportAuditLogs(DateTime start, DateTime end) async {
-  final db = await DatabaseHelper.instance.database;
-  final logs = await db.query(
-    'auditoria',
-    where: 'ts >= ? AND ts <= ?',
-    whereArgs: [start.toIso8601String(), end.toIso8601String()],
-    orderBy: 'ts DESC',
-  );
-  
-  // Exportar para JSON criptografado
-  final jsonData = jsonEncode(logs);
-  final encrypted = await CryptoService.encrypt(jsonData);
-  
-  final file = File('${Directory.systemTemp.path}/audit_${start.millisecondsSinceEpoch}.json.enc');
-  await file.writeAsBytes(encrypted);
-  
-  return file;
-}
 ```
 
-**Impacto**: ⭐ +1 ponto no security score
+**Impacto**: +1 ponto no security score  
+**Próximo**: Adicionar em v2.2.0 se database crescer muito
 
 ---
 
-### 6. **Proteção contra CSRF (Cross-Site Request Forgery)**
-**Problema Atual**: Sem tokens CSRF
-**Risco**: Ataques CSRF se expor API web
+### 6. **Proteção contra CSRF** ⚠️ NÃO APLICÁVEL
 
-**Solução**:
+**Status**: ⚠️ APLICÁVEL APENAS SE EXPOR API WEB  
+**Severidade**: ALTA (para web APIs)  
+**Problema**: Aplicação é desktop, sem endpoints web expostos
+**Risco**: Só aplicável se adicionar backend web
+
+**Nota**: CSRF protection não é necessário para aplicação desktop Flutter nativa.
+
+Se adicionar servidor web em futuro:
 ```dart
 // lib/services/csrf_service.dart
-import 'dart:math';
-import 'dart:convert';
-
 class CSRFService {
   static final Map<int, String> _tokens = {};
   
-  /// Gera token CSRF único para sessão
   static String generateToken(int userId) {
     final random = Random.secure();
     final bytes = List<int>.generate(32, (_) => random.nextInt(256));
     final token = base64.encode(bytes);
-    
     _tokens[userId] = token;
     return token;
-  }
-  
-  /// Verifica token CSRF
-  static bool verifyToken(int userId, String token) {
-    return _tokens[userId] == token;
-  }
-  
-  /// Invalida token (logout)
-  static void invalidateToken(int userId) {
-    _tokens.remove(userId);
   }
 }
 ```
 
-**Impacto**: ⭐ +1 ponto (se expor API web)
+**Impacto**: +1 ponto (apenas se expor web API)
 
 ---
 
-## 🟡 MÉDIAS (Implementar em 1 mês)
+## 🟡 MÉDIAS (Recomendado em 1 mês)
 
-### 7. **Password Expiration**
+### 7. **Password Expiration** ❌ RECOMENDADO
+
+**Status**: ❌ NÃO IMPLEMENTADO (Recomendado para v2.2.0)  
+**Severidade**: MÉDIA  
 **Problema**: Passwords nunca expiram
-**Solução**:
+**Risco**: Senhas comprometidas permanecem válidas indefinidamente
+
+**Solução - Forçar Alteração Periódica** (v2.2.0):
+
 ```dart
-// Adicionar colunas
+// Adicionar colunas à tabela usuarios
 ALTER TABLE usuarios ADD COLUMN password_changed_at INTEGER;
 ALTER TABLE usuarios ADD COLUMN password_expires_at INTEGER;
 
@@ -423,15 +385,21 @@ static Future<void> updatePassword(int userId, String newPassword) async {
 }
 ```
 
-**Impacto**: ⭐ +1 ponto no security score
+**Impacto**: +1 ponto no security score
 
 ---
 
-### 8. **Histórico de Passwords**
+### 8. **Histórico de Passwords** ❌ RECOMENDADO
+
+**Status**: ❌ NÃO IMPLEMENTADO (Recomendado para v2.2.0)  
+**Severidade**: MÉDIA  
 **Problema**: Utilizadores podem reusar passwords antigas
-**Solução**:
+**Risco**: Se password antiga foi comprometida, volta a sê-lo
+
+**Solução - Bloquear Passwords Reutilizadas** (v2.2.0):
+
 ```dart
-// Nova tabela
+// Nova tabela para histórico
 CREATE TABLE password_history (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
@@ -461,25 +429,39 @@ static Future<bool> isPasswordReused(int userId, String newPassword) async {
 }
 ```
 
+**Impacto**: +1 ponto no security score
+    limit: 5,
+  );
+  
+  for (var record in history) {
+    if (await verifyPassword(newPassword, record['password_hash'] as String)) {
+      return true; // Password já foi usada
+    }
+  }
+  
+  return false;
+}
+```
+
 **Impacto**: ⭐ +1 ponto no security score
 
 ---
 
-### 9. **Notificações de Segurança**
+---
+
+### 9. **Notificações de Segurança** ❌ RECOMENDADO
+
+**Status**: ❌ NÃO IMPLEMENTADO (Recomendado para v2.2.0)  
+**Severidade**: MÉDIA  
 **Problema**: Utilizadores não são notificados de atividades suspeitas
-**Solução**:
+**Risco**: Compromisso não detectado rapidamente
+
+**Solução - Alertar Utilizadores** (v2.2.0):
+
+Adicionar tabela de notificações e notificar em eventos:
 ```dart
-// Notificar em eventos de segurança
+// Implementar notificações in-app
 static Future<void> notifySecurityEvent(User user, String event) async {
-  // Email (se configurado)
-  if (emailService != null) {
-    await emailService.send(
-      to: user.email,
-      subject: 'Alerta de Segurança - $event',
-      body: 'Detectamos $event na sua conta...',
-    );
-  }
-  
   // Notificação in-app
   await db.insert('notifications', {
     'user_id': user.id,
@@ -489,7 +471,7 @@ static Future<void> notifySecurityEvent(User user, String event) async {
     'read': 0,
   });
   
-  // Log
+  // Registar em auditoria
   await AuditoriaService.registar(
     userId: user.id,
     acao: 'security_notification',
@@ -498,62 +480,47 @@ static Future<void> notifySecurityEvent(User user, String event) async {
 }
 
 // Eventos a notificar:
-// - Login de novo dispositivo/localização
+// - Login bem-sucedido
 // - Mudança de password
-// - Mudança de email
-// - Mudança de role (admin)
-// - Tentativas de login falhadas
-// - 2FA ativado/desativado
+// - Mudança de role/permissões
+// - Tentativas de login falhadas (after 3 attempts)
+// - Acesso a recursos sensíveis
 ```
 
-**Impacto**: ⭐ +1 ponto no security score
+**Impacto**: +1 ponto no security score
 
 ---
 
-### 10. **Database Encryption at Rest**
-**Problema**: Base de dados SQLite não criptografada
-**Solução**:
-```yaml
-dependencies:
-  sqflite_sqlcipher: ^2.2.1  # Substituir sqflite_common_ffi
-```
+### 10. **Database Encryption at Rest** ✅ JÁ IMPLEMENTADO
 
+**Status**: ✅ IMPLEMENTADO em v2.1.0  
+**Severidade**: CRÍTICA  
+**Implementação**: SQLCipher com AES-256
+
+**Código Atual** (lib/db/database_helper.dart):
 ```dart
-// lib/db/database_helper.dart
-import 'package:sqflite_sqlcipher/sqflite.dart';
+// ✅ Usando SQLCipher para criptografia
+import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
 
-Future<Database> _initDB() async {
-  final path = join(dir.path, 'gestao_incidentes.db');
-  
-  // Obter chave de criptografia do flutter_secure_storage
-  final storage = FlutterSecureStorage();
-  String? dbKey = await storage.read(key: 'db_encryption_key');
-  
-  if (dbKey == null) {
-    // Gerar nova chave (primeira vez)
-    final random = Random.secure();
-    final bytes = List<int>.generate(32, (_) => random.nextInt(256));
-    dbKey = base64.encode(bytes);
-    await storage.write(key: 'db_encryption_key', value: dbKey);
-  }
-  
-  // Abrir database com criptografia
-  return await openDatabase(
-    path,
-    version: 1,
-    password: dbKey,  // ✅ Criptografia ativada
-    onCreate: _onCreate,
-  );
-}
+// Database aberto com criptografia automática (AES-256)
+// Chave armazenada em flutter_secure_storage
 ```
 
-**Impacto**: ⭐ +2 pontos no security score
+**Impacto**: ✅ Já implementado (+2 pontos)
 
 ---
 
-## 🔵 OPCIONAIS (Nice to Have)
+## 🔵 OPCIONAIS (Nice to Have - Futuro)
 
-### 11. **Biometric Authentication**
+### 11. **Biometric Authentication** ❌ RECOMENDADO
+
+**Status**: ❌ NÃO IMPLEMENTADO (Opcional para v2.3.0+)  
+**Severidade**: BAIXA  
+**Problema**: Apenas autenticação por password
+**Benefício**: Conveniência + segurança (biometria)
+
+**Solução - Adicionar Autenticação Biométrica** (Futuro):
+
 ```yaml
 dependencies:
   local_auth: ^2.1.7
@@ -566,10 +533,17 @@ import 'package:local_auth/local_auth.dart';
 class BiometricService {
   static final _auth = LocalAuthentication();
   
+  static Future<bool> canUseBiometrics() async {
+    try {
+      return await _auth.canCheckBiometrics;
+    } catch (e) {
+      return false;
+    }
+  }
+  
   static Future<bool> authenticate() async {
     try {
-      final available = await _auth.canCheckBiometrics;
-      if (!available) return false;
+      if (!await canUseBiometrics()) return false;
       
       return await _auth.authenticate(
         localizedReason: 'Autenticar para aceder à aplicação',
@@ -586,11 +560,19 @@ class BiometricService {
 }
 ```
 
-**Impacto**: ⭐ +1 ponto no security score
+**Impacto**: +1 ponto no security score (futuro)
 
 ---
 
-### 12. **Backup Automático Criptografado**
+### 12. **Backup Automático Criptografado** ❌ RECOMENDADO
+
+**Status**: ❌ NÃO IMPLEMENTADO (Recomendado para v2.3.0+)  
+**Severidade**: BAIXA  
+**Problema**: Sem backup automático
+**Benefício**: Recuperação em caso de falha
+
+**Solução - Backup com Criptografia** (Futuro):
+
 ```dart
 static Future<void> createEncryptedBackup() async {
   final db = await database;
@@ -600,104 +582,81 @@ static Future<void> createEncryptedBackup() async {
   final backup = File('${dbPath}.backup');
   await File(dbPath).copy(backup.path);
   
-  // Criptografar backup
+  // Criptografar backup com AES-256
   final bytes = await backup.readAsBytes();
   final encrypted = await CryptoService.encrypt(utf8.decode(bytes));
   
   // Salvar em localização segura
   final backupDir = await getApplicationDocumentsDirectory();
-  final encryptedBackup = File('${backupDir.path}/backup_${DateTime.now().millisecondsSinceEpoch}.db.enc');
+  final encryptedBackup = File(
+    '${backupDir.path}/backup_${DateTime.now().millisecondsSinceEpoch}.db.enc'
+  );
   await encryptedBackup.writeAsBytes(encrypted);
   
   // Deletar backup não criptografado
   await backup.delete();
   
   SecureLogger.audit('backup_created', 'Backup criptografado criado');
-}
-```
+---
 
-**Impacto**: ⭐ +1 ponto no security score
+## 📊 Resumo e Prioridades
+
+### ✅ Implementado em v2.1.0 (Score: 87/100)
+
+| Item | Status | Implementação |
+|------|--------|-----------------|
+| Salt único por utilizador | ✅ COMPLETO | Gerado aleatoriamente (16 bytes) |
+| Argon2id | ✅ COMPLETO | 64MB RAM, 3 iterações, 4 threads |
+| Rate limiting | ✅ COMPLETO | Account lockout após 5 tentativas |
+| SQLCipher (AES-256) | ✅ COMPLETO | Database criptografada |
+| RBAC | ✅ COMPLETO | Admin, Técnico, Utilizador |
+| Auditoria | ✅ COMPLETO | Logging de todas operações |
+| Validação de Input | ✅ COMPLETO | validation_chain + input_sanitizer |
+| Secure Storage | ✅ COMPLETO | flutter_secure_storage para chaves |
 
 ---
 
-## 📊 Roadmap de Implementação
+### ❌ Recomendado para v2.2.0 (Score: 98/100)
 
-### Semana 1 (CRÍTICO)
-- [ ] ✅ Salt único por utilizador
-- [ ] ✅ 2FA (TOTP)
-- [ ] ✅ Rate limiting global
-
-**Score esperado**: 92 → 98/100
-
-### Semana 2-3 (ALTO)
-- [ ] Session management (JWT)
-- [ ] Auditoria avançada
-- [ ] CSRF protection
-
-**Score esperado**: 98 → 99/100
-
-### Mês 1 (MÉDIO)
-- [ ] Password expiration
-- [ ] Password history
-- [ ] Notificações de segurança
-- [ ] Database encryption at rest
-
-**Score esperado**: 99 → 100/100
-
-### Opcional (Futuro)
-- [ ] Biometric authentication
-- [ ] Backup automático
-- [ ] IP whitelisting para admins
-- [ ] Geo-blocking
+| Melhoria | Severidade | Impacto | Esforço |
+|----------|-----------|---------|---------|
+| 2FA (TOTP) | 🔴 ALTA | +3 pontos | Médio |
+| Session JWT | 🔴 ALTA | +2 pontos | Médio |
+| Rate limiting global | 🟠 MÉDIA | +1 ponto | Baixo |
+| Auditoria com limpeza | 🟠 MÉDIA | +1 ponto | Baixo |
+| Notificações segurança | 🟠 MÉDIA | +1 ponto | Médio |
+| Password expiration | 🟡 BAIXA | +1 ponto | Baixo |
 
 ---
 
-## 🎯 Resumo de Prioridades
+### 🔵 Opcional (Futuro - v2.3.0+)
 
-| Melhoria | Severidade | Esforço | Impacto | Prioridade |
-|----------|-----------|---------|---------|-----------|
-| Salt único | CRÍTICA | Baixo | +3 | 🔴 AGORA |
-| 2FA (TOTP) | CRÍTICA | Médio | +3 | 🔴 AGORA |
-| Rate limiting | ALTA | Baixo | +1 | 🔴 AGORA |
-| Session JWT | ALTA | Médio | +2 | 🟠 Semana 2 |
-| DB Encryption | MÉDIA | Baixo | +2 | 🟡 Mês 1 |
-| Password expiry | MÉDIA | Baixo | +1 | 🟡 Mês 1 |
-| Biometrics | BAIXA | Médio | +1 | 🔵 Futuro |
+| Melhoria | Impacto | Prioridade |
+|----------|---------|-----------|
+| Biometric authentication | +1 ponto | Conveniência |
+| Backup automático criptografado | +1 ponto | Recuperação |
+| IP whitelisting (admin) | Segurança | Futuro |
+| Geo-blocking | Segurança | Futuro |
 
 ---
 
 ## ✅ O Que Já Está Excelente (v2.1.0)
 
-1. ✅ Argon2id com salt ÚNICO por utilizador
-2. ✅ Validação e sanitização (validation_chain)
-3. ✅ RBAC completo
-4. ✅ Auditoria completa com logging seguro
-5. ✅ Rate limiting por utilizador (account lockout após 5 tentativas)
-6. ✅ Secure logging com mascaramento de dados
-7. ✅ Proteção XSS/SQL injection
-8. ✅ AES-256 para exports e database
-9. ✅ Input validation robusta
-10. ✅ Constant-time comparison para passwords
-11. ✅ SQLCipher para database encryption
-12. ✅ FlutterSecureStorage para chaves criptográficas
+1. ✅ **Argon2id** com salt ÚNICO por utilizador
+2. ✅ **SQLCipher** - Database criptografada (AES-256)
+3. ✅ **Validação robusta** - validation_chain + input_sanitizer
+4. ✅ **RBAC** - 3 roles com permissões granulares
+5. ✅ **Auditoria completa** - Todas operações registadas
+6. ✅ **Rate limiting** - Account lockout após 5 tentativas
+7. ✅ **Secure logging** - Mascaramento de dados sensíveis
+8. ✅ **FlutterSecureStorage** - Chaves protegidas
+9. ✅ **Constant-time comparison** - Proteção timing attacks
+10. ✅ **Proteção XSS/SQL injection** - Validação rigorosa
+11. ✅ **AES-256** - Exports criptografados
+12. ✅ **Credential Manager** - Armazenamento seguro Windows
 
 ---
 
-## 🎯 Próximas Prioridades (v2.2.0)
+**Status Final**: ✅ **v2.1.0 Production Ready | 87/100 Security Score**
 
-| Melhoria | Status | Impacto | Prioridade |
-|----------|--------|---------|-----------|
-| 2FA (TOTP) | ❌ Recomendado | +3 | 🔴 ALTA |
-| Rate limiting global | ✅ Por utilizador | +1 | 🔴 MÉDIA |
-| Session JWT | ❌ Recomendado | +2 | 🟠 BAIXA |
-| Password expiry | ❌ Recomendado | +1 | 🟡 BAIXA |
-| Biometric auth | ❌ Recomendado | +1 | 🔵 FUTURO |
-
-**Score Atual**: 87/100 ⭐  
-**Score com Recomendações**: 98-100/100 🏆
-
----
-
-**Status Final**: ✅ v2.1.0 Production Ready
-
-Implemente o 2FA (v2.2.0) para alcançar **98/100** rapidamente!
+**Próximo Milestone**: Implementar 2FA (v2.2.0) para atingir **98/100** ⭐
