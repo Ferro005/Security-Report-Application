@@ -44,6 +44,11 @@ function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_options(${TARGET} PRIVATE -Wall -Werror)
   target_compile_options(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:-O3>")
   target_compile_definitions(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:NDEBUG>")
+  # Avoid breaking on third-party deprecation warnings (e.g., nlohmann/json
+  # via flutter_secure_storage_linux) with newer compilers.
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(${TARGET} PRIVATE -Wno-error=deprecated-literal-operator -Wno-deprecated-literal-operator)
+  endif()
 endfunction()
 
 # Flutter library and tool build rules.
@@ -72,6 +77,16 @@ set_target_properties(${BINARY_NAME}
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
+
+# Hints for finding OpenSSL on Arch-based systems, needed by sqlcipher_flutter_libs.
+# These cache variables are visible to plugin subdirectories included below.
+set(OPENSSL_ROOT_DIR "/usr" CACHE PATH "OpenSSL root directory" FORCE)
+set(OPENSSL_CRYPTO_LIBRARY "/usr/lib/libcrypto.so" CACHE FILEPATH "OpenSSL crypto library" FORCE)
+set(OPENSSL_SSL_LIBRARY "/usr/lib/libssl.so" CACHE FILEPATH "OpenSSL SSL library" FORCE)
+# Help CMake find headers and libraries in standard system locations.
+set(CMAKE_INCLUDE_PATH "/usr/include;/usr/include/openssl" CACHE PATH "Include search path" FORCE)
+set(CMAKE_LIBRARY_PATH "/usr/lib" CACHE PATH "Library search path" FORCE)
+
 include(flutter/generated_plugins.cmake)
 
 
@@ -79,9 +94,9 @@ include(flutter/generated_plugins.cmake)
 # By default, "installing" just makes a relocatable bundle in the build
 # directory.
 set(BUILD_BUNDLE_DIR "${PROJECT_BINARY_DIR}/bundle")
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
-endif()
+# Always install into the local build bundle dir to avoid requiring root
+# or writing to system paths like /usr/local when running from Flutter.
+set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
 
 # Start with a clean build bundle directory every time.
 install(CODE "
