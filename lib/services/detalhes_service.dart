@@ -1,11 +1,43 @@
 import '../db/database_helper.dart';
+import '../utils/secure_logger.dart';
 
 class DetalhesService {
+  static Future<void> _ensureTables() async {
+    try {
+      final db = await DatabaseHelper.instance.database;
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS comentarios (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          incidente_id INTEGER NOT NULL,
+          usuario_id INTEGER NOT NULL,
+          comentario TEXT NOT NULL,
+          data_comentario TEXT NOT NULL,
+          FOREIGN KEY (incidente_id) REFERENCES incidentes(id) ON DELETE CASCADE,
+          FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL
+        );
+      ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS historico_status (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          incidente_id INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          alterado_por INTEGER,
+          data_alteracao TEXT NOT NULL,
+          FOREIGN KEY (incidente_id) REFERENCES incidentes(id) ON DELETE CASCADE,
+          FOREIGN KEY (alterado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+        );
+      ''');
+    } catch (e, st) {
+      SecureLogger.error('Failed ensuring detalhes tables', e, st);
+      rethrow;
+    }
+  }
   static Future<void> adicionarComentario({
     required int incidenteId,
     required int usuarioId,
     required String comentario,
   }) async {
+    await _ensureTables();
     final db = await DatabaseHelper.instance.database;
     await db.insert('comentarios', {
       'incidente_id': incidenteId,
@@ -20,6 +52,7 @@ class DetalhesService {
     required String novoStatus,
     required int alteradoPor,
   }) async {
+    await _ensureTables();
     final db = await DatabaseHelper.instance.database;
 
     await db.update(
@@ -51,6 +84,7 @@ class DetalhesService {
   }
 
   static Future<List<Map<String, dynamic>>> listarComentarios(int incidenteId) async {
+    await _ensureTables();
     final db = await DatabaseHelper.instance.database;
     return await db.rawQuery('''
       SELECT c.*, u.nome AS autor
@@ -62,6 +96,7 @@ class DetalhesService {
   }
 
   static Future<List<Map<String, dynamic>>> listarHistorico(int incidenteId) async {
+    await _ensureTables();
     final db = await DatabaseHelper.instance.database;
     return await db.rawQuery('''
       SELECT h.*, u.nome AS alterado_por_nome

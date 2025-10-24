@@ -61,9 +61,19 @@ class _DetalhesIncidenteDialogState extends State<DetalhesIncidenteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = widget.user.tipo == 'admin';
-    final isTecnico = widget.user.tipo == 'tecnico';
+  final role = widget.user.tipo.trim().toLowerCase();
+  final isAdmin = role == 'admin' || role == 'administrador' || role == 'administrator';
+  final isTecnico = role == 'tecnico' || role == 'técnico' || role == 'technician';
     final canManageIncident = isAdmin || isTecnico;
+
+  const statusOptions = ['Pendente', 'Em Análise', 'Em andamento', 'Resolvido', 'Cancelado'];
+  final currentStatus = statusOptions.contains(widget.incidente.status)
+    ? widget.incidente.status
+    : statusOptions.first;
+  const riscoOptions = ['Baixo', 'Médio', 'Alto', 'Crítico'];
+  final currentRisco = riscoOptions.contains(widget.incidente.grauRisco)
+    ? widget.incidente.grauRisco
+    : riscoOptions.first;
 
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
@@ -88,19 +98,15 @@ class _DetalhesIncidenteDialogState extends State<DetalhesIncidenteDialog> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         DropdownButton<String>(
-                          value: widget.incidente.status,
-                          items: ['Pendente', 'Em Análise', 'Em andamento', 'Resolvido', 'Cancelado']
-                              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                              .toList(),
+                          value: currentStatus,
+                          items: statusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (v) {
                             if (v != null) _atualizarStatus(v);
                           },
                         ),
                         DropdownButton<String>(
-                          value: widget.incidente.grauRisco,
-                          items: ['Baixo', 'Médio', 'Alto', 'Crítico']
-                              .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                              .toList(),
+                          value: currentRisco,
+                          items: riscoOptions.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
                           onChanged: (v) {
                             if (v != null) _atualizarRisco(v);
                           },
