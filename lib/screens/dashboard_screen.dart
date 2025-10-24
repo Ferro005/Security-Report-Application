@@ -133,8 +133,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = widget.user.tipo == 'admin';
-    final isTecnico = widget.user.tipo == 'tecnico';
+    final role = widget.user.tipo.trim().toLowerCase();
+    final isAdmin = role == 'admin' || role == 'administrador' || role == 'administrator';
+    final isTecnico = role == 'tecnico' || role == 'técnico' || role == 'technician';
     final canManageIncidents = isAdmin || isTecnico;
 
     return Scaffold(
