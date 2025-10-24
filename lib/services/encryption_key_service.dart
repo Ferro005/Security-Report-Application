@@ -8,10 +8,10 @@ import '../utils/secure_logger.dart';
 /// de forma segura usando flutter_secure_storage
 class EncryptionKeyService {
   static final EncryptionKeyService instance = EncryptionKeyService._init();
-  
+
   static const String _keyStorageKey = 'database_encryption_key';
   static const String _saltStorageKey = 'database_encryption_salt';
-  
+
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
     aOptions: AndroidOptions(
       encryptedSharedPreferences: true,
@@ -30,7 +30,8 @@ class EncryptionKeyService {
   Future<String> getDatabasePassword() async {
     try {
       // Tentar ler chave existente
-      String? existingKey = await _secureStorage.read(key: _keyStorageKey);
+      final String? existingKey =
+          await _secureStorage.read(key: _keyStorageKey);
       if (existingKey != null && existingKey.isNotEmpty) {
         SecureLogger.database('Using existing encryption key');
         return existingKey;
@@ -57,7 +58,8 @@ class EncryptionKeyService {
 
   /// Gera um salt para derivação de chave (se necessário)
   Future<String> getSalt() async {
-    String? existingSalt = await _secureStorage.read(key: _saltStorageKey);
+    final String? existingSalt =
+        await _secureStorage.read(key: _saltStorageKey);
     if (existingSalt != null && existingSalt.isNotEmpty) {
       return existingSalt;
     }
@@ -77,14 +79,15 @@ class EncryptionKeyService {
 
   /// Remove todas as chaves armazenadas (usar com cuidado!)
   Future<void> clearKeys() async {
-    SecureLogger.warning('Clearing all encryption keys - DATABASE WILL BE INACCESSIBLE!');
+    SecureLogger.warning(
+        'Clearing all encryption keys - DATABASE WILL BE INACCESSIBLE!');
     await _secureStorage.delete(key: _keyStorageKey);
     await _secureStorage.delete(key: _saltStorageKey);
   }
 
   /// Verifica se já existe uma chave armazenada
   Future<bool> hasKey() async {
-    String? existingKey = await _secureStorage.read(key: _keyStorageKey);
-    return existingKey != null;
+    final String? existingKey = await _secureStorage.read(key: _keyStorageKey);
+    return existingKey != null && existingKey.isNotEmpty;
   }
 }
