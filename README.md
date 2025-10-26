@@ -159,7 +159,7 @@ Nota: Na primeira execução, a base de dados é criada vazia e é gerado apenas
 
 ### Schema Principal
 
-**usuarios**
+**utilizadores**
 - `id`, `nome`, `email`, `hash`, `tipo`
 - `failed_attempts`, `last_failed_at`, `locked_until`
 - Hashes: Argon2id (v2.1.0 - production standard)
