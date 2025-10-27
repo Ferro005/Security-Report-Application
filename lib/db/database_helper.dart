@@ -50,29 +50,6 @@ class DatabaseHelper {
     final dbExists = File(path).existsSync();
 
     if (!dbExists) {
-      // Compat: migrar base anterior de OneDrive/Documentos (ou Documents) se existir
-      if (Platform.isWindows) {
-        try {
-          final userProfile = Platform.environment['USERPROFILE'];
-          if (userProfile != null && userProfile.isNotEmpty) {
-            final legacyCandidates = [
-              join(userProfile, 'OneDrive', 'Documentos', 'gestao_incidentes.db'),
-              join(userProfile, 'OneDrive', 'Documents', 'gestao_incidentes.db'),
-            ];
-            for (final legacyPath in legacyCandidates) {
-              final f = File(legacyPath);
-              if (await f.exists()) {
-                await f.copy(path);
-                SecureLogger.database('Migrated DB from legacy path', table: legacyPath);
-                break;
-              }
-            }
-          }
-        } catch (e, st) {
-          SecureLogger.warning('Failed legacy DB migration', e, st);
-        }
-      }
-
       // Se ainda não existe, copiar o banco de assets (se disponível)
       if (!File(path).existsSync()) {
         try {
@@ -170,88 +147,8 @@ class DatabaseHelper {
       await _onCreate(db, 1);
     }
 
-    // Executar migração de esquema de incidentes, se necessário
-    await _migrateIncidentesSchemaIfNeeded(db);
-  }
-
-  /// Migra tabela `incidentes` de esquema legado (numero/data_ocorrencia/user_id/tecnico_id)
-  /// para o novo esquema (titulo/data_reportado/usuario_id/tecnico_responsavel).
-  Future<void> _migrateIncidentesSchemaIfNeeded(Database db) async {
-    try {
-      // Verificar se existe tabela incidentes
-      final incidentesTables = await db.query(
-        'sqlite_master',
-        where: 'type = ? AND name = ?',
-        whereArgs: ['table', 'incidentes'],
-      );
-      if (incidentesTables.isEmpty) {
-        // Nada a migrar
-        return;
-      }
-
-      final colsRows = await db.rawQuery("PRAGMA table_info('incidentes')");
-      final cols = colsRows
-          .map((r) => r['name']?.toString() ?? '')
-          .where((s) => s.isNotEmpty)
-          .toList();
-
-      final hasTitulo = cols.contains('titulo');
-      final hasNumero = cols.contains('numero');
-      final hasDataReportado = cols.contains('data_reportado');
-      final hasDataOcorrencia = cols.contains('data_ocorrencia');
-      final hasUserId = cols.contains('usuario_id');
-      final hasLegacyUserId = cols.contains('user_id');
-      final hasTecnicoResp = cols.contains('tecnico_responsavel');
-      final hasLegacyTecnico = cols.contains('tecnico_id');
-
-      final needsMigration = (!hasTitulo && hasNumero) || (!hasDataReportado && hasDataOcorrencia) || (!hasUserId && hasLegacyUserId) || (!hasTecnicoResp && hasLegacyTecnico);
-
-      if (!needsMigration) {
-        // Ainda assim, garantir colunas opcionais
-        if (!hasTecnicoResp) {
-          await db.execute('ALTER TABLE incidentes ADD COLUMN tecnico_responsavel INTEGER;');
-        }
-        if (!hasUserId) {
-          await db.execute('ALTER TABLE incidentes ADD COLUMN usuario_id INTEGER;');
-        }
-        return;
-      }
-
-      SecureLogger.database('Migrating incidentes schema (legacy -> new)');
-      await db.transaction((txn) async {
-        await txn.execute('''
-          CREATE TABLE IF NOT EXISTS incidentes_new (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            titulo TEXT,
-            descricao TEXT,
-            categoria TEXT,
-            status TEXT,
-            grau_risco TEXT,
-            data_reportado TEXT,
-            tecnico_responsavel INTEGER,
-            usuario_id INTEGER
-          );
-        ''');
-
-        // Copiar dados mapeando colunas legadas de forma determinística
-        final titleExpr = hasTitulo ? 'titulo' : 'numero';
-        final dateExpr = hasDataReportado ? 'data_reportado' : 'data_ocorrencia';
-        final tecnicoExpr = hasTecnicoResp ? 'tecnico_responsavel' : 'tecnico_id';
-        final userExpr = hasUserId ? 'usuario_id' : 'user_id';
-
-        await txn.execute('''
-          INSERT INTO incidentes_new (id, titulo, descricao, categoria, status, grau_risco, data_reportado, tecnico_responsavel, usuario_id)
-          SELECT id, $titleExpr, descricao, categoria, status, grau_risco, $dateExpr, $tecnicoExpr, $userExpr FROM incidentes;
-        ''');
-
-        await txn.execute('DROP TABLE incidentes;');
-        await txn.execute('ALTER TABLE incidentes_new RENAME TO incidentes;');
-      });
-
-      SecureLogger.database('Migration complete: incidentes');
-    } catch (e, st) {
-      SecureLogger.error('Failed to migrate incidentes schema', e, st);
-    }
+    // Nota: Migração de esquema legado desativada. O app já garante
+    // tabelas/colunas necessárias nos serviços responsáveis.
   }
 
   // Método para debug

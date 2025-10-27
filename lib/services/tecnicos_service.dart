@@ -5,7 +5,7 @@ class TecnicosService {
   /// 📜 Lista todos os técnicos
   static Future<List<Map<String, dynamic>>> listar() async {
     final db = await DatabaseHelper.instance.database;
-    // Garantir tabela (migração leve)
+  // Garantir tabela base
     await db.execute('''
       CREATE TABLE IF NOT EXISTS tecnicos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

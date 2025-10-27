@@ -23,20 +23,7 @@ class IncidentesService {
       );
     ''');
 
-    // Garantir colunas novas em bases já existentes (migração leve)
-    try {
-      final cols = await DatabaseHelper.instance.tableColumns('incidentes');
-      if (!cols.contains('tecnico_responsavel')) {
-        await db.execute('ALTER TABLE incidentes ADD COLUMN tecnico_responsavel INTEGER;');
-        SecureLogger.database('Migrated: added column incidentes.tecnico_responsavel');
-      }
-      if (!cols.contains('usuario_id')) {
-        await db.execute('ALTER TABLE incidentes ADD COLUMN usuario_id INTEGER;');
-        SecureLogger.database('Migrated: added column incidentes.usuario_id');
-      }
-    } catch (e, st) {
-      SecureLogger.error('Incidentes table migration failed', e, st);
-    }
+    // Nota: lógica de migração removida. Utilizar apenas o esquema atual.
 
     final rows = await db.query('incidentes', orderBy: 'datetime(data_reportado) DESC');
 

@@ -267,19 +267,6 @@ class AuthService {
         try {
           if (user.hash.isNotEmpty) {
             ok = await verifyPassword(senha, user.hash);
-            
-            // Migração automática de BCrypt para Argon2
-            if (ok && user.hash.startsWith(r'$2')) {
-              SecureLogger.info('Migrando hash BCrypt para Argon2 para usuário ${user.id}');
-              final newHash = await hashPassword(senha);
-              await db.update(
-                'usuarios',
-                {'hash': newHash},
-                where: 'id = ?',
-                whereArgs: [user.id],
-              );
-              SecureLogger.audit('hash_migration', 'BCrypt → Argon2 para usuário ${user.id}');
-            }
           } else {
             SecureLogger.warning('Hash vazio para usuário ${user.id}');
             await AuditoriaService.registar(
