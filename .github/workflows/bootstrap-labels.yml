@@ -1,0 +1,69 @@
+name: Bootstrap Labels and Milestones
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  ensure-labels-and-milestone:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure labels exist
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const desiredLabels = [
+              { name: 'security-hardening', color: 'd93f0b', description: 'Security-related hardening tasks' },
+              { name: 'good-first-issue', color: '7057ff', description: 'Good entry-level issue' },
+            ];
+
+            // Fetch existing labels
+            const { data: existing } = await github.rest.issues.listLabelsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+            const existingNames = new Set(existing.map(l => l.name.toLowerCase()));
+
+            // Create missing labels
+            for (const lbl of desiredLabels) {
+              if (!existingNames.has(lbl.name.toLowerCase())) {
+                core.info(`Creating label ${lbl.name}`);
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: lbl.name,
+                  color: lbl.color,
+                  description: lbl.description,
+                });
+              } else {
+                core.info(`Label ${lbl.name} already exists`);
+              }
+            }
+
+      - name: Ensure milestone exists
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'v2.2 – KMS/Sync';
+            const { data: milestones } = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const exists = milestones.find(m => m.title === title);
+            if (!exists) {
+              core.info(`Creating milestone ${title}`);
+              await github.rest.issues.createMilestone({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                state: 'open'
+              });
+            } else {
+              core.info(`Milestone ${title} already exists`);
+            }

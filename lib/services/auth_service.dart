@@ -16,8 +16,11 @@ import '../utils/rate_limiter.dart';
 
 class AuthService {
   /// Gera hash seguro com Argon2id (winner do Password Hashing Competition)
-  /// Parâmetros padrão atuais (desktop): m=64MB, t=3, p=4
-  /// Ver README (tabela de parâmetros) para orientações por plataforma.
+  /// Recomendação por plataforma:
+  /// - Desktop: m=64MB, t=3, p=1–2 (evita thrash em máquinas fracas)
+  /// - Android/iOS: m=32–48MB, t=3, p=1
+  /// Observação: o código atual usa m=64MB, t=3, p=4 por compatibilidade histórica.
+  /// Consulte o README (tabela de parâmetros) para detalhes e plano de transição.
   /// SECURITY: Cada password tem salt único e aleatório (16 bytes)
   static Future<String> hashPassword(String senha) async {
     try {
