@@ -8,7 +8,8 @@ void main(List<String> args) {
   
   // Caminho da DB runtime
   final userProfile = Platform.environment['USERPROFILE'] ?? '';
-  final runtimePath = path.join(userProfile, 'OneDrive', 'Documentos', 'gestao_incidentes.db');
+  // Alinha com o app: preferir %USERPROFILE%\Documents no Windows
+  final runtimePath = path.join(userProfile, 'Documents', 'gestao_incidentes.db');
   
   // Caminho da DB empacotada
   final assetsPath = path.join(projectRoot, 'assets', 'db', 'gestao_incidentes.db');

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -30,14 +31,17 @@ class AuthService {
       for (int i = 0; i < saltBytes.length; i++) {
         saltBytes[i] = random.nextInt(256);
       }
-      
+      // Parâmetros por plataforma (transição compatível):
+      // - Desktop: m=64MB (65536 KB), t=3, p=1–2 (usamos 2 por padrão)
+      // - Mobile: m=48MB (49152 KB), t=3, p=1
+      final desired = _desiredArgon2Params();
       final parameters = Argon2Parameters(
-        Argon2Parameters.ARGON2_id,  // Argon2id (resistente a GPU e side-channel)
-        saltBytes,                    // ✅ Salt único por utilizador
+        Argon2Parameters.ARGON2_id,
+        saltBytes,
         version: Argon2Parameters.ARGON2_VERSION_13,
-        iterations: 3,               // Time cost
-        memory: 65536,               // 64 MB (em KB)
-  lanes: 4,                    // Parallelism (p)
+        iterations: desired.iterations,
+        memory: desired.memoryKB,
+        lanes: desired.lanes,
       );
       
       final argon2 = Argon2BytesGenerator();
@@ -46,9 +50,11 @@ class AuthService {
       final passwordBytes = utf8.encode(senha);
       final result = Uint8List(32); // 32 bytes output
       argon2.generateBytes(passwordBytes, result, 0, result.length);
-      
-      // Formato: $argon2id$<salt_base64>$<hash_base64>
-      final hash = '\$argon2id\$${base64.encode(saltBytes)}\$${base64.encode(result)}';
+
+  // Novo formato com parâmetros explícitos (compatível com legado):
+  // $argon2id$v=19$m=<kb>,t=<i>,p=<p>$<salt_b64>$<hash_b64>
+  final paramsStr = 'm=${desired.memoryKB},t=${desired.iterations},p=${desired.lanes}';
+  final hash = '\$argon2id\$v=19\$$paramsStr\$${base64.encode(saltBytes)}\$${base64.encode(result)}';
       SecureLogger.crypto('argon2_hash_generated', true);
       return hash;
     } catch (e) {
@@ -66,6 +72,33 @@ class AuthService {
         // Parse: $argon2id$<salt>$<hash>
         final parts = hash.split('\$');
         
+        // Novo formato com parâmetros: $argon2id$v=19$m=...,t=...,p=...$<salt>$<hash>
+        if (parts.length >= 6 && parts[2].startsWith('v=19') && parts[3].contains('m=') ) {
+          final paramsMap = _parseParams(parts[3]);
+          final saltBytes = base64.decode(parts[4]);
+          final storedHash = base64.decode(parts[5]);
+
+          final parameters = Argon2Parameters(
+            Argon2Parameters.ARGON2_id,
+            saltBytes,
+            version: Argon2Parameters.ARGON2_VERSION_13,
+            iterations: paramsMap['t'] ?? 3,
+            memory: paramsMap['m'] ?? 65536,
+            lanes: paramsMap['p'] ?? 2,
+          );
+
+          final argon2 = Argon2BytesGenerator();
+          argon2.init(parameters);
+
+          final passwordBytes = utf8.encode(senha);
+          final result = Uint8List(32);
+          argon2.generateBytes(passwordBytes, result, 0, result.length);
+
+          final matches = _constantTimeCompare(result, storedHash);
+          SecureLogger.crypto('argon2_verification_param', matches);
+          return matches;
+        }
+
         // Formato antigo (sem salt separado) - compatibilidade retroativa
         if (parts.length == 3) {
           final hashPart = parts[2];
@@ -333,6 +366,18 @@ class AuthService {
           await db.update('usuarios', resetPayload, where: 'id = ?', whereArgs: [user.id]);
         }
 
+        // Rehash transparente se hash estiver em formato legado ou com parâmetros fora do recomendado
+        try {
+          final needsUpgrade = _hashNeedsUpgrade(user.hash);
+          if (needsUpgrade) {
+            final newHash = await hashPassword(senha);
+            await db.update('usuarios', {'hash': newHash}, where: 'id = ?', whereArgs: [user.id]);
+            SecureLogger.audit('hash_upgraded', 'Hash Argon2 atualizado com parâmetros atuais', userId: user.id);
+          }
+        } catch (e) {
+          SecureLogger.warning('Falha ao atualizar hash para parâmetros atuais: ${e.toString()}');
+        }
+
         // Gerar JWT token para sessão
         await SessionService.initializeSecretKey(); // Inicializar chave se necessário
         final token = await SessionService.generateToken(user);
@@ -373,4 +418,50 @@ class AuthService {
         throw Exception('Erro durante login: $e');
     }
   }
+}
+
+// Helpers Argon2 parametrização e parsing
+class _Argon2Desired {
+  final int memoryKB;
+  final int iterations;
+  final int lanes;
+  const _Argon2Desired({required this.memoryKB, required this.iterations, required this.lanes});
+}
+
+_Argon2Desired _desiredArgon2Params() {
+  // Desktop: p=2, m=64MB; Mobile: p=1, m=48MB; t=3
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    return const _Argon2Desired(memoryKB: 65536, iterations: 3, lanes: 2);
+  }
+  // Android/iOS
+  return const _Argon2Desired(memoryKB: 49152, iterations: 3, lanes: 1);
+}
+
+Map<String, int> _parseParams(String s) {
+  final out = <String, int>{};
+  for (final part in s.split(',')) {
+    final kv = part.split('=');
+    if (kv.length == 2) {
+      final key = kv[0].trim();
+      final val = int.tryParse(kv[1].trim());
+      if (val != null) out[key] = val;
+    }
+  }
+  return out;
+}
+
+bool _hashNeedsUpgrade(String hash) {
+  if (!hash.startsWith(r'$argon2')) return false;
+  final parts = hash.split('\$');
+  // New format has at least 6 parts, with v and params
+  if (parts.length >= 6 && parts[2].startsWith('v=19')) {
+    final params = _parseParams(parts[3]);
+    final desired = _desiredArgon2Params();
+    final m = params['m'] ?? 65536;
+    final t = params['t'] ?? 3;
+    final p = params['p'] ?? 2;
+    return (m != desired.memoryKB) || (t != desired.iterations) || (p != desired.lanes);
+  }
+  // Legacy formats (3 or 4 parts) should be upgraded
+  return true;
 }
