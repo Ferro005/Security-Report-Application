@@ -16,7 +16,8 @@ import '../utils/rate_limiter.dart';
 
 class AuthService {
   /// Gera hash seguro com Argon2id (winner do Password Hashing Competition)
-  /// Configuração recomendada: 64MB RAM, 3 iterações, 4 threads paralelas
+  /// Parâmetros padrão atuais (desktop): m=64MB, t=3, p=4
+  /// Ver README (tabela de parâmetros) para orientações por plataforma.
   /// SECURITY: Cada password tem salt único e aleatório (16 bytes)
   static Future<String> hashPassword(String senha) async {
     try {
@@ -33,7 +34,7 @@ class AuthService {
         version: Argon2Parameters.ARGON2_VERSION_13,
         iterations: 3,               // Time cost
         memory: 65536,               // 64 MB (em KB)
-        lanes: 4,                    // Parallelism
+  lanes: 4,                    // Parallelism (p)
       );
       
       final argon2 = Argon2BytesGenerator();
