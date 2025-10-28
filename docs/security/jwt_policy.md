@@ -5,9 +5,11 @@ This document describes how JSON Web Tokens (JWT) are used in this app and the r
 ## Summary
 
 - Algorithm: HS256 (symmetric, secret stored in secure storage)
-- Token lifetime: 8 hours (default)
-- Auto-refresh: if < 1 hour remaining, issue a new token
-- Storage: tokens are held in memory during app runtime; the signing key is stored in platform secure storage
+- Access token lifetime: 30 minutes
+- Auto-refresh: if near expiry (<5 minutes), issue a new token
+- Refresh window: up to 24 hours from issuance (token contains `rte` claim)
+- Device binding: tokens include `deviceId` and are only valid on the device that issued them
+- Storage: tokens are held in memory during app runtime; the signing key and device id are stored in platform secure storage
 - Revocation: rotate the signing secret to invalidate all outstanding tokens
 
 Code reference:
@@ -21,14 +23,17 @@ The token payload includes:
 - role: user role (e.g., admin/usuario)
 - iat: issued-at (seconds since epoch)
 - exp: expiration (seconds since epoch)
+- rte: refresh-until (seconds since epoch)
+- deviceId: local device identifier
 
 Signing: HS256 using a 256-bit secret generated on first run and persisted via `FlutterSecureStorage`.
 
 ## Lifetimes and refresh
 
-- Access token lifetime is 8 hours by default.
-- If the remaining time is less than 1 hour, the app refreshes the token automatically by issuing a new token with a fresh `exp`.
-- There is no separate refresh token concept; the app uses short-lived access tokens with opportunistic refresh.
+- Access token lifetime is 30 minutes.
+- If the remaining time is less than 5 minutes (or expired), the app refreshes the token automatically by issuing a new token with a fresh `exp`.
+- A refresh is only allowed if current time is before `rte` (24 hours from issuance).
+- There is no separate refresh token concept; the app uses short-lived access tokens with opportunistic refresh within a bounded window.
 
 Trade-offs:
 - Simpler client logic for a local/desktop-focused app.
@@ -55,7 +60,8 @@ Depending on needs:
 ## Hardening checklist
 
 - [x] HS256 with random 256-bit key stored in secure storage
-- [x] 8h validity with early refresh at <1h
+- [x] 30m validity with early refresh at <5m and max refresh window 24h (`rte`)
+- [x] Device binding via `deviceId`
 - [x] Minimal claims
 - [x] Errors logged without leaking secrets
 - [ ] Optional: implement per-user tokenVersion to support selective revocation

@@ -8,8 +8,10 @@ import 'dart:math';
 class SessionService {
   static const _storage = FlutterSecureStorage();
   static const _secretKeyName = 'jwt_secret_key';
-  static const _tokenDuration = Duration(hours: 8);
-  static const _refreshThreshold = Duration(hours: 1);
+  static const _deviceIdKey = 'device_id';
+  static const _tokenDuration = Duration(minutes: 30); // Access TTL 30m
+  static const _refreshThreshold = Duration(minutes: 5); // Refresh near-expiry (<5m)
+  static const _refreshMaxWindow = Duration(hours: 24); // Allow refresh ≤ 24h from issue
 
   /// Inicializar secret key (chama apenas uma vez)
   static Future<void> initializeSecretKey() async {
@@ -22,6 +24,18 @@ class SessionService {
       await _storage.write(key: _secretKeyName, value: newKey);
       SecureLogger.audit('jwt_secret_initialized', 'JWT secret key created');
     }
+  }
+
+  /// Gera/recupera um identificador local de dispositivo para device binding
+  static Future<String> _getOrCreateDeviceId() async {
+    final existing = await _storage.read(key: _deviceIdKey);
+    if (existing != null && existing.isNotEmpty) return existing;
+    final rnd = Random.secure();
+    final values = List<int>.generate(16, (_) => rnd.nextInt(256));
+    final newId = base64Url.encode(values);
+    await _storage.write(key: _deviceIdKey, value: newId);
+    SecureLogger.audit('device_id_initialized', 'Device ID created');
+    return newId;
   }
 
   /// Obter secret key do armazenamento seguro
@@ -39,6 +53,8 @@ class SessionService {
       final secretKey = await _getSecretKey();
       final now = DateTime.now();
       final expiresAt = now.add(_tokenDuration);
+      final refreshUntil = now.add(_refreshMaxWindow);
+      final deviceId = await _getOrCreateDeviceId();
 
       final jwt = JWT({
         'userId': user.id,
@@ -46,6 +62,8 @@ class SessionService {
         'role': user.tipo,
         'iat': (now.millisecondsSinceEpoch / 1000).floor(),
         'exp': (expiresAt.millisecondsSinceEpoch / 1000).floor(),
+        'rte': (refreshUntil.millisecondsSinceEpoch / 1000).floor(), // refresh token expiry (max)
+        'deviceId': deviceId,
       });
 
       final token = jwt.sign(SecretKey(secretKey), algorithm: JWTAlgorithm.HS256);
@@ -66,7 +84,18 @@ class SessionService {
       try {
         final jwt = JWT.verify(token, SecretKey(secretKey));
         final payload = jwt.payload as Map<String, dynamic>;
-        
+        // Device binding: aceitar tokens legados sem deviceId, mas preferir reemissão
+        final localDeviceId = await _storage.read(key: _deviceIdKey);
+        final tokenDeviceId = payload['deviceId'];
+        if (tokenDeviceId != null && localDeviceId != null && localDeviceId.isNotEmpty) {
+          if (tokenDeviceId != localDeviceId) {
+            SecureLogger.warning('JWT token device mismatch');
+            return null;
+          }
+        } else {
+          SecureLogger.info('Legacy token without device binding accepted');
+        }
+
         SecureLogger.crypto('token_verified', true);
         return payload;
       } on JWTExpiredException {
@@ -90,10 +119,20 @@ class SessionService {
 
       // Obter tempo de expiração
       final exp = payload['exp'] as int;
+      final rte = payload['rte'] as int?; // may be null for legacy tokens
       final expiresAt = DateTime.fromMillisecondsSinceEpoch(exp * 1000);
       final timeLeft = expiresAt.difference(DateTime.now());
 
-      // Renovar se falta menos de 1 hora para expirar
+      // Respeitar janela máxima de refresh (≤ 24h desde emissão)
+      if (rte != null) {
+        final refreshUntil = DateTime.fromMillisecondsSinceEpoch(rte * 1000);
+        if (DateTime.now().isAfter(refreshUntil)) {
+          SecureLogger.info('Refresh window expired');
+          return null;
+        }
+      }
+
+      // Renovar se expirado ou com pouco tempo restante (< threshold)
       if (timeLeft.isNegative || timeLeft < _refreshThreshold) {
         final user = User(
           id: payload['userId'],
