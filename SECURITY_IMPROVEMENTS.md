@@ -5,10 +5,12 @@
 **Implementação**: JWT (HS256) com expiração de 8h e refresh automático, chave secreta em `flutter_secure_storage`
 # 🛡️ Melhorias de Segurança Adicionais
 
-**Última Atualização:** 21 de Outubro de 2025  
+**Última Atualização:** 28 de Outubro de 2025  
 **Versão:** v2.1.0 - Production Ready
 
-## � Estado Atual: 91/100 ⭐
+> Nota (28/10/2025): Documentação sincronizada com a adoção de MVVM com Provider nas principais telas. Scripts de migração permanecem DEPRECATED; o schema é gerido automaticamente pela aplicação.
+
+## Estado Atual: 91/100 ⭐
 
 **Score:** Production-Ready
 **Tipo:** Final Audit & Cleanup Completed

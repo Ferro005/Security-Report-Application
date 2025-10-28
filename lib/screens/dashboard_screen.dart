@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../models/incidente.dart';
-import '../services/incidentes_service.dart';
 import 'form_incidente_screen.dart';
 import 'detalhes_incidente_dialog.dart';
 import 'perfil_screen.dart';
@@ -11,7 +10,8 @@ import 'login_screen.dart';
 import '../services/export_service.dart';
 import 'dashboard_stats_screen.dart';
 import 'notifications_panel.dart';
-import '../services/notifications_service.dart';
+import 'package:provider/provider.dart';
+import '../viewmodels/dashboard_view_model.dart';
 
 class DashboardScreen extends StatefulWidget {
   final User user;
@@ -22,15 +22,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  List<Incidente> todos = [];
-  List<Incidente> filtrados = [];
-  bool loading = true;
-  String filtroTexto = '';
-  String filtroStatus = '';
-  String filtroCategoria = '';
-  String filtroRisco = '';
-  int _unreadCount = 0;
-
   final statusList = ['Todos', 'Pendente', 'Em Análise', 'Em andamento', 'Resolvido', 'Cancelado'];
   final categoriaList = ['Todas', 'TI', 'RH', 'Infraestrutura'];
   final riscoList = ['Todos', 'Baixo', 'Médio', 'Alto', 'Crítico'];
@@ -38,30 +29,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _carregar();
-    _loadUnread();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final vm = context.read<DashboardViewModel>();
+      await vm.carregar();
+      await vm.refreshUnread(widget.user.id);
+    });
   }
 
   Future<void> _carregar() async {
-    setState(() => loading = true);
-    try {
-      final lista = await IncidentesService.listar();
-      setState(() {
-        todos = lista;
-        filtrados = lista;
-        loading = false;
-      });
-    } catch (e) {
-      setState(() => loading = false);
-      _mostrarSnack('Erro ao carregar incidentes: $e', cor: Colors.red);
-    }
+    await context.read<DashboardViewModel>().carregar();
   }
 
   Future<void> _loadUnread() async {
-    final count = await NotificationsService.countUnreadNotifications(widget.user.id);
-    if (mounted) {
-      setState(() => _unreadCount = count);
-    }
+    await context.read<DashboardViewModel>().refreshUnread(widget.user.id);
   }
 
   Future<void> _openNotifications() async {
@@ -86,17 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _filtrar() {
-    setState(() {
-      filtrados = todos.where((i) {
-        final busca = filtroTexto.isEmpty || i.titulo.toLowerCase().contains(filtroTexto.toLowerCase());
-        final st = filtroStatus == 'Todos' || filtroStatus.isEmpty || i.status == filtroStatus;
-        final cat = filtroCategoria == 'Todas' || filtroCategoria.isEmpty || i.categoria == filtroCategoria;
-        final risco = filtroRisco == 'Todos' || filtroRisco.isEmpty || i.grauRisco == filtroRisco;
-        return busca && st && cat && risco;
-      }).toList();
-    });
-  }
+  // Filtering handled by DashboardViewModel
 
   void _abrirDetalhes(Incidente inc) async {
     await showDialog(
@@ -133,6 +103,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<DashboardViewModel>();
     final role = widget.user.tipo.trim().toLowerCase();
     final isAdmin = role == 'admin' || role == 'administrador' || role == 'administrator';
     final isTecnico = role == 'tecnico' || role == 'técnico' || role == 'technician';
@@ -158,7 +129,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   tooltip: 'Notificações',
                   onPressed: _openNotifications,
                 ),
-                if (_unreadCount > 0)
+                if (vm.unreadCount > 0)
                   Positioned(
                     right: 8,
                     top: 8,
@@ -170,7 +141,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       constraints: const BoxConstraints(minWidth: 18),
                       child: Text(
-                        _unreadCount > 99 ? '99+' : '$_unreadCount',
+                        vm.unreadCount > 99 ? '99+' : '${vm.unreadCount}',
                         style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
@@ -209,7 +180,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.picture_as_pdf),
             tooltip: 'Exportar PDF',
             onPressed: () async {
-              final file = await ExportService.exportarPDF(filtrados);
+              final file = await ExportService.exportarPDF(vm.incidentes);
               _mostrarSnack('📄 PDF exportado para: ${file.path}');
             },
           ),
@@ -217,7 +188,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.table_chart),
             tooltip: 'Exportar CSV',
             onPressed: () async {
-              final file = await ExportService.exportarCSV(filtrados);
+              final file = await ExportService.exportarCSV(vm.incidentes);
               _mostrarSnack('📊 CSV exportado para: ${file.path}');
             },
           ),
@@ -226,7 +197,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: const Icon(Icons.picture_as_pdf_outlined),
               tooltip: 'Exportar PDF Descriptografado',
               onPressed: () async {
-                final file = await ExportService.exportarPDFDescriptografado(filtrados);
+                final file = await ExportService.exportarPDFDescriptografado(vm.incidentes);
                 _mostrarSnack('📄 PDF descriptografado exportado para: ${file.path}');
               },
             ),
@@ -235,7 +206,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: const Icon(Icons.table_chart_outlined),
               tooltip: 'Exportar CSV Descriptografado',
               onPressed: () async {
-                final file = await ExportService.exportarCSVDescriptografado(filtrados);
+                final file = await ExportService.exportarCSVDescriptografado(vm.incidentes);
                 _mostrarSnack('📊 CSV descriptografado exportado para: ${file.path}');
               },
             ),
@@ -275,7 +246,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      body: loading
+    body: vm.loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -291,45 +262,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             hintText: 'Pesquisar por título...',
                             border: OutlineInputBorder(),
                           ),
-                          onChanged: (v) {
-                            filtroTexto = v;
-                            _filtrar();
-                          },
+                          onChanged: (v) => context.read<DashboardViewModel>().setFiltroTexto(v),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: filtroStatus.isEmpty ? 'Todos' : filtroStatus,
+                          value: vm.filtroStatus,
                           items: statusList.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                          onChanged: (v) {
-                            filtroStatus = v ?? '';
-                            _filtrar();
-                          },
+                          onChanged: (v) => context.read<DashboardViewModel>().setFiltroStatus(v ?? ''),
                           decoration: const InputDecoration(labelText: 'Status'),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: filtroCategoria.isEmpty ? 'Todas' : filtroCategoria,
+                          value: vm.filtroCategoria,
                           items: categoriaList.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                          onChanged: (v) {
-                            filtroCategoria = v ?? '';
-                            _filtrar();
-                          },
+                          onChanged: (v) => context.read<DashboardViewModel>().setFiltroCategoria(v ?? ''),
                           decoration: const InputDecoration(labelText: 'Categoria'),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: filtroRisco.isEmpty ? 'Todos' : filtroRisco,
+                          value: vm.filtroRisco,
                           items: riscoList.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                          onChanged: (v) {
-                            filtroRisco = v ?? '';
-                            _filtrar();
-                          },
+                          onChanged: (v) => context.read<DashboardViewModel>().setFiltroRisco(v ?? ''),
                           decoration: const InputDecoration(labelText: 'Risco'),
                         ),
                       ),
@@ -337,12 +296,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 Expanded(
-                  child: filtrados.isEmpty
+                  child: vm.incidentes.isEmpty
                       ? const Center(child: Text('Nenhum incidente encontrado.'))
                       : ListView.builder(
-                          itemCount: filtrados.length,
+                          itemCount: vm.incidentes.length,
                           itemBuilder: (context, i) {
-                            final inc = filtrados[i];
+                            final inc = vm.incidentes[i];
                             final cor = {
                               'Pendente': Colors.orange,
                               'Em Análise': Colors.blue,

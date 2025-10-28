@@ -7,6 +7,12 @@ import 'services/windows_secure_window.dart';
 import 'package:window_manager/window_manager.dart';
 import 'services/auditoria_service.dart';
 import 'services/setup_service.dart';
+import 'package:provider/provider.dart';
+import 'viewmodels/login_view_model.dart';
+import 'viewmodels/dashboard_view_model.dart';
+import 'viewmodels/perfil_view_model.dart';
+import 'viewmodels/tecnicos_view_model.dart';
+import 'viewmodels/form_incidente_view_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,14 +57,23 @@ class _AppState extends State<App> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Gestão de Incidentes',
-      theme: AppTheme.theme,
-      home: const LoginScreen(),
-      debugShowCheckedModeBanner: false,
-      routes: {
-        '/login': (context) => const LoginScreen(),
-      },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LoginViewModel()),
+        ChangeNotifierProvider(create: (_) => DashboardViewModel()),
+        ChangeNotifierProvider(create: (_) => PerfilViewModel()),
+        ChangeNotifierProvider(create: (_) => TecnicosViewModel()),
+        ChangeNotifierProvider(create: (_) => FormIncidenteViewModel()),
+      ],
+      child: MaterialApp(
+        title: 'Gestão de Incidentes',
+        theme: AppTheme.theme,
+        home: const LoginScreen(),
+        debugShowCheckedModeBanner: false,
+        routes: {
+          '/login': (context) => const LoginScreen(),
+        },
+      ),
     );
   }
 }

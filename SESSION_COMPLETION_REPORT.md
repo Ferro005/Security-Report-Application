@@ -1,5 +1,7 @@
 # 🎉 Session Completion Report
 
+> Note (Oct 28, 2025): Subsequent refactors (MVVM adoption) did not change the security outcomes described here. Migration scripts referenced historically are now DEPRECATED; the app manages schema automatically.
+
 **Date**: October 21, 2025  
 **Status**: ✅ **ALL TASKS COMPLETED**  
 **Build Status**: ✅ SUCCESS (Windows Release - 51.4 seconds, 0 errors)  
@@ -98,17 +100,10 @@ CREATE INDEX idx_notifications_user_unread;
 
 ---
 
-### ✅ 5. Database Migration Tool
-**File**: `tools/migrate_password_expiration.dart`
-
-**Functionality**:
-- Adds password expiration columns
-- Creates password_history table with index
-- Creates notifications table with indexes
-- Updates existing users with timestamps
-- Non-destructive (idempotent)
-
-**Execution Status**: ✅ Successfully applied
+### ❌ 5. Database Migration Tool (Deprecated)
+Migration scripts are deprecated and no longer required. The application now
+ensures/creates the required schema on use. Do not run migration scripts. This
+section is retained for historical context only.
 
 ---
 
@@ -356,9 +351,7 @@ flutter build windows --release
 ```
 
 ### Database Migration
-```bash
-dart run tools/migrate_password_expiration.dart
-```
+Deprecated. No action required; the application manages schema automatically.
 
 ### Run Application
 ```bash

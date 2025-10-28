@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import 'package:provider/provider.dart';
 import '../utils/validation_chains.dart';
 import 'dashboard_screen.dart';
+import '../viewmodels/login_view_model.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,31 +15,23 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final emailCtrl = TextEditingController();
   final senhaCtrl = TextEditingController();
-  bool loading = false;
-  String? erro;
 
   Future<void> _doLogin() async {
     if (!_formKey.currentState!.validate()) return;
-    
-    setState(() => erro = null);
-    setState(() => loading = true);
-
+    final vm = context.read<LoginViewModel>();
+    vm.clearError();
     // Sanitizar inputs antes de enviar
     final email = ValidationChains.emailSanitization.sanitize(emailCtrl.text) ?? '';
     final senha = senhaCtrl.text;
 
-    final user = await AuthService.login(email, senha);
+    final user = await vm.login(email, senha);
     if (user != null) {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => DashboardScreen(user: user)),
       );
-    } else {
-      setState(() => erro = 'Credenciais inválidas.');
     }
-
-    setState(() => loading = false);
   }
 
   @override
@@ -74,11 +67,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   validator: ValidationChains.passwordValidation.validate,
                 ),
                 const SizedBox(height: 16),
-                if (erro != null) Text(erro!, style: const TextStyle(color: Colors.red)),
+                Consumer<LoginViewModel>(
+                  builder: (context, vm, _) => vm.error != null
+                      ? Text(vm.error!, style: const TextStyle(color: Colors.red))
+                      : const SizedBox.shrink(),
+                ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: loading ? null : _doLogin,
-                  child: loading
+                  onPressed: context.watch<LoginViewModel>().loading ? null : _doLogin,
+                  child: context.watch<LoginViewModel>().loading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text('Entrar'),
                 ),
@@ -101,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final emailCtrl = TextEditingController();
     final senhaCtrl = TextEditingController();
     final confirmarSenhaCtrl = TextEditingController();
-    String? erro;
+  String? dialogErro;
 
     showDialog(
       context: context,
@@ -144,10 +141,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     return null;
                   },
                 ),
-                if (erro != null)
+                if (dialogErro != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 16),
-                    child: Text(erro!, style: const TextStyle(color: Colors.red)),
+                    child: Text(dialogErro!, style: const TextStyle(color: Colors.red)),
                   ),
               ],
             ),
@@ -169,8 +166,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   final nome = ValidationChains.nameSanitization.sanitize(nomeCtrl.text) ?? '';
                   final email = ValidationChains.emailSanitization.sanitize(emailCtrl.text) ?? '';
                   final senha = senhaCtrl.text;
-
-                  await AuthService.criarUsuario(nome, email, senha);
+                  final vm = context.read<LoginViewModel>();
+                  final ok = await vm.createAccount(nome: nome, email: email, senha: senha);
+                  if (!ok) {
+                    setState(() => dialogErro = vm.error);
+                    return;
+                  }
                   
                   if (!mounted) return;
                   Navigator.pop(context);
@@ -181,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   );
                 } catch (e) {
-                  setState(() => erro = e.toString());
+                  setState(() => dialogErro = e.toString());
                 }
               },
               child: const Text('Criar Conta'),

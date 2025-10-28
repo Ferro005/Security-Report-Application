@@ -2,12 +2,14 @@
 
 **Date**: October 21, 2025  
 **Status**: ✅ IMPLEMENTED (except 2FA as requested)  
-**Version**: 2.1.0  
+**Version**: 2.1.1  
 **Build**: Windows Desktop  
 
 ---
 
 ## Summary of Implemented Security Improvements
+
+Note (Oct 28, 2025): Documentation sync only — MVVM refactor applied across screens. No changes to the security features described below. Migration scripts remain DEPRECATED; the app manages schema automatically.
 
 This document summarizes the security improvements implemented in v2.1.0 (October 2025).
 
@@ -212,21 +214,12 @@ NotificationsService.notifyAccountLocked(userId)
 
 ---
 
-## Database Migration
+## Database Migration (Deprecated)
 
-Run the migration script to apply database changes:
-
-```bash
-dart run tools/migrate_password_expiration.dart
-```
-
-This script:
-1. Adds `password_changed_at` and `password_expires_at` columns to usuarios table
-2. Creates `password_history` table with index
-3. Creates `notifications` table with indexes
-4. Updates existing users with initial timestamps (90 days from now)
-
-**Status**: ✅ APPLIED
+As of v2.1.x, all migration scripts are deprecated and no longer required. The
+application now ensures/creates the required schema on use within the app. Do
+not run migration scripts. For historical reference, the intended schema
+changes are documented above.
 
 ---
 
@@ -354,7 +347,7 @@ const auditCleanupIntervalHours = 168; // 1 week
 1. ✅ `lib/services/session_service.dart` (130 lines)
 2. ✅ `lib/services/password_policy_service.dart` (318 lines)
 3. ✅ `lib/services/notifications_service.dart` (280 lines)
-4. ✅ `tools/migrate_password_expiration.dart` (migration script)
+4. ⛔ `tools/migrate_password_expiration.dart` — DEPRECATED stub (do not run)
 
 ### Modified Files
 1. ✅ `lib/services/auth_service.dart` - Integrated JWT + password policy + notifications
@@ -362,7 +355,7 @@ const auditCleanupIntervalHours = 168; // 1 week
 3. ✅ `pubspec.yaml` - Added dart_jsonwebtoken dependency
 
 ### Database Files
-1. ✅ `assets/db/gestao_incidentes.db` - Updated with new schema
+— n/a (runtime database is created/ensured by the app; no DB files tracked in the repo)
 
 ---
 
@@ -396,5 +389,5 @@ Commits for this session:
 
 **Implementation Status**: 🟢 **COMPLETE (except 2FA)**  
 **Next Review**: v2.2.0 planning  
-**Last Updated**: October 21, 2025
+**Last Updated**: October 28, 2025
 

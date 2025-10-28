@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/user.dart';
 import '../models/incidente.dart';
-import '../services/incidentes_service.dart';
-import '../services/tecnicos_service.dart';
 import '../utils/validation_chains.dart';
+import '../viewmodels/form_incidente_view_model.dart';
 
 class FormIncidenteScreen extends StatefulWidget {
   final User user;
@@ -23,15 +23,15 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
   String categoriaSelecionada = 'TI';
   String riscoSelecionado = 'Baixo';
   int? tecnicoSelecionado;
-
-  List<Map<String, dynamic>> tecnicos = [];
-
-  bool loading = false;
+  
 
   @override
   void initState() {
     super.initState();
-    _carregarTecnicos();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<FormIncidenteViewModel>().carregarTecnicos();
+    });
 
     if (widget.incidente != null) {
       tituloCtrl.text = widget.incidente!.titulo;
@@ -42,48 +42,26 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
     }
   }
 
-  Future<void> _carregarTecnicos() async {
-    final lista = await TecnicosService.listar();
-    setState(() => tecnicos = lista);
-  }
-
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() => loading = true);
-
-    try {
-      // Sanitizar dados antes de enviar
-      final titulo = ValidationChains.incidentDescriptionSanitization.sanitize(tituloCtrl.text) ?? '';
-      final descricao = ValidationChains.incidentDescriptionSanitization.sanitize(descCtrl.text) ?? '';
-
-      final dados = {
-        'titulo': titulo,
-        'descricao': descricao,
-        'categoria': categoriaSelecionada,
-        'grau_risco': riscoSelecionado,
-        'status': widget.incidente?.status ?? 'Pendente',
-        'usuario_id': widget.user.id,
-        'tecnico_responsavel': tecnicoSelecionado,
-        'data_reportado': DateTime.now().toIso8601String(),
-      };
-
-      bool sucesso;
-      if (widget.incidente == null) {
-        sucesso = await IncidentesService.criar(dados);
-      } else {
-        sucesso = await IncidentesService.atualizar(widget.incidente!.id, dados);
-      }
-
-      if (!mounted) return;
-      Navigator.pop(context, sucesso);
-    } catch (e) {
-      if (!mounted) return;
+    final vm = context.read<FormIncidenteViewModel>();
+    final sucesso = await vm.salvar(
+      user: widget.user,
+      incidente: widget.incidente,
+      titulo: tituloCtrl.text,
+      descricao: descCtrl.text,
+      categoria: categoriaSelecionada,
+      grauRisco: riscoSelecionado,
+      tecnicoId: tecnicoSelecionado,
+    );
+    if (!mounted) return;
+    if (sucesso) {
+      Navigator.pop(context, true);
+    } else {
+      final msg = vm.error ?? 'Erro ao guardar incidente';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao guardar incidente: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
-    } finally {
-      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -95,7 +73,7 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
       appBar: AppBar(
         title: Text(widget.incidente == null ? 'Novo Incidente' : 'Editar Incidente'),
       ),
-      body: loading
+      body: context.watch<FormIncidenteViewModel>().loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(16),
@@ -141,7 +119,7 @@ class _FormIncidenteScreenState extends State<FormIncidenteScreen> {
                         initialValue: tecnicoSelecionado,
                         items: [
                           const DropdownMenuItem<int?>(value: null, child: Text('— Nenhum técnico —')),
-                          ...tecnicos.map((t) => DropdownMenuItem<int?>(
+                          ...context.watch<FormIncidenteViewModel>().tecnicos.map((t) => DropdownMenuItem<int?>(
                                 value: t['id'] as int?,
                                 child: Text(t['nome'].toString()),
                               )),

@@ -1,3 +1,8 @@
+// DEPRECATED: Dev-only utility script (not used by the application at runtime).
+// This script assumes legacy paths (e.g., OneDrive). Prefer running the app
+// and letting DatabaseHelper resolve a safe path under %USERPROFILE%\Documents.
+// Kept for reference and local development only.
+
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:sqlite3/sqlite3.dart';

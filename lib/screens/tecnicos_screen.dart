@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/tecnicos_service.dart';
+import 'package:provider/provider.dart';
 import '../models/user.dart';
 import '../utils/validation_chains.dart';
+import '../viewmodels/tecnicos_view_model.dart';
 
 class TecnicosScreen extends StatefulWidget {
   final User user;
@@ -12,8 +13,6 @@ class TecnicosScreen extends StatefulWidget {
 }
 
 class _TecnicosScreenState extends State<TecnicosScreen> {
-  List<Map<String, dynamic>> tecnicos = [];
-  bool loading = true;
   final _formKey = GlobalKey<FormState>();
   final _nomeCtrl = TextEditingController();
   final _pesquisaCtrl = TextEditingController();
@@ -21,24 +20,18 @@ class _TecnicosScreenState extends State<TecnicosScreen> {
   @override
   void initState() {
     super.initState();
-    _carregar();
-  }
-
-  Future<void> _carregar() async {
-    setState(() => loading = true);
-    final lista = await TecnicosService.listar();
-    setState(() {
-      tecnicos = lista;
-      loading = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<TecnicosViewModel>().carregar();
     });
   }
 
   Future<void> _pesquisar(String termo) async {
+    final vm = context.read<TecnicosViewModel>();
     if (termo.isEmpty) {
-      _carregar();
+      await vm.carregar();
     } else {
-      final lista = await TecnicosService.pesquisar(termo);
-      setState(() => tecnicos = lista);
+      await vm.pesquisar(termo);
     }
   }
 
@@ -46,9 +39,16 @@ class _TecnicosScreenState extends State<TecnicosScreen> {
     if (!_formKey.currentState!.validate()) return;
     
     final nome = ValidationChains.nameSanitization.sanitize(_nomeCtrl.text) ?? '';
-    await TecnicosService.adicionar(nome);
-    _nomeCtrl.clear();
-    _carregar();
+    final vm = context.read<TecnicosViewModel>();
+    await vm.adicionar(nome);
+    if (!mounted) return;
+    if (vm.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(vm.error!), backgroundColor: Colors.red),
+      );
+    } else {
+      _nomeCtrl.clear();
+    }
   }
 
   Future<void> _editar(int id, String nomeAtual) async {
@@ -84,8 +84,14 @@ class _TecnicosScreenState extends State<TecnicosScreen> {
 
     if (novoNome != null) {
       final sanitized = ValidationChains.nameSanitization.sanitize(novoNome) ?? '';
-      await TecnicosService.atualizar(id, sanitized);
-      _carregar();
+      final vm = context.read<TecnicosViewModel>();
+      await vm.atualizar(id, sanitized);
+      if (!mounted) return;
+      if (vm.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(vm.error!), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -103,8 +109,14 @@ class _TecnicosScreenState extends State<TecnicosScreen> {
     );
 
     if (confirmar == true) {
-      await TecnicosService.apagar(id);
-      _carregar();
+      final vm = context.read<TecnicosViewModel>();
+      await vm.apagar(id);
+      if (!mounted) return;
+      if (vm.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(vm.error!), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -116,11 +128,11 @@ class _TecnicosScreenState extends State<TecnicosScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _carregar,
+            onPressed: () => context.read<TecnicosViewModel>().carregar(),
           ),
         ],
       ),
-      body: loading
+      body: context.watch<TecnicosViewModel>().loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(12),
@@ -136,7 +148,7 @@ class _TecnicosScreenState extends State<TecnicosScreen> {
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _pesquisaCtrl.clear();
-                          _carregar();
+                          context.read<TecnicosViewModel>().carregar();
                         },
                       ),
                     ),
@@ -172,12 +184,12 @@ class _TecnicosScreenState extends State<TecnicosScreen> {
 
                   // 📜 Lista
                   Expanded(
-                    child: tecnicos.isEmpty
+                    child: context.watch<TecnicosViewModel>().tecnicos.isEmpty
                         ? const Center(child: Text('Nenhum técnico registado.'))
                         : ListView.builder(
-                            itemCount: tecnicos.length,
+                            itemCount: context.watch<TecnicosViewModel>().tecnicos.length,
                             itemBuilder: (context, i) {
-                              final t = tecnicos[i];
+                              final t = context.watch<TecnicosViewModel>().tecnicos[i];
                               return Card(
                                 margin: const EdgeInsets.symmetric(vertical: 6),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

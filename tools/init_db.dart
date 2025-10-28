@@ -1,3 +1,8 @@
+// DEPRECATED: Dev-only initializer script (not used by the application at runtime).
+// Uses legacy/assumed paths including OneDrive. Prefer launching the app and
+// allowing DatabaseHelper to create/ensure schema under %USERPROFILE%\Documents.
+// Kept for reference and local development only.
+
 import 'dart:io';
 import 'dart:convert';
 import 'dart:math';

@@ -1,7 +1,7 @@
 # 📊 Project Status — Security Report Application
 
-Last Updated / Última Atualização: October 21, 2025  
-Version / Versão: 2.1.0 — Production Ready  
+Last Updated / Última Atualização: October 28, 2025  
+Version / Versão: 2.1.1 — Production Ready  
 Security Score: 91/100 ⬆️ (from 87/100)  
 Build Status: ✅ Windows Release (0 errors)
 
@@ -13,7 +13,7 @@ Aplicação desktop Flutter para gestão de incidentes de segurança com SQLite 
 
 ---
 
-## ✅ Implementado (v2.1.0)
+## ✅ Implementado (v2.1.0 — v2.1.1)
 
 - Argon2id com SALT único por utilizador (64MB RAM, 3 iterações, 4 lanes)
 - JWT Session Management (8h, auto‑refresh < 1h)
@@ -24,19 +24,26 @@ Aplicação desktop Flutter para gestão de incidentes de segurança com SQLite 
 - InputSanitizer (XSS/SQL/path) e SecureLogger (masking)
 - DB no Windows em `%USERPROFILE%\Documents` (evita OneDrive) + validação canónica
 
+### Arquitetura (v2.1.1)
+- Adoção de MVVM com `provider`
+- ViewModels: Login, Dashboard, Técnicos, Formulário de Incidente (Perfil: placeholder)
+
 ---
 
 ## 🔧 Tools (scripts)
 
 Mantidos:
 - `tools/reset_clean.dart` — Reset da base de dados
-- `tools/init_db.dart` — Inicializar base de dados vazia
 - `tools/sync_db.dart` — Sincronização manual runtime ↔ assets (opt‑in)
-- `tools/populate_users.dart` — Popular dados de teste
-- `tools/migrate_password_expiration.dart` — Migração de schema v2.1.0
+
 
 Legado (utilizar apenas se necessário):
-- `tools/auto_migrate.dart`, `tools/migrate_db.dart`, `tools/migrate_to_argon2.dart`, `tools/check_db.dart`, binários *.exe sob `tools/`
+- `tools/init_db.dart` — DEV‑only; assume caminhos legados
+- `tools/populate_users.dart` — DEV‑only; assume caminhos legados
+- `tools/populate_incidents.dart` — DEV‑only; assume caminhos legados
+- `tools/check_db.dart` — DEV‑only; assume caminhos legados
+- `tools/migrate_password_expiration.dart` — DEPRECATED (scripts de migração removidos)
+- `tools/auto_migrate.dart`, `tools/migrate_db.dart`, `tools/migrate_to_argon2.dart`, binários *.exe sob `tools/`
 
 Nota: Auto‑push no sync está desativado por padrão; existe opção opt‑in no código para uso local em desenvolvimento.
 

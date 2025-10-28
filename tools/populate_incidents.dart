@@ -1,3 +1,8 @@
+// DEPRECATED: Dev-only population script (not used by the application at runtime).
+// This script assumes a legacy OneDrive path. Prefer using the app with
+// DatabaseHelper which resolves a safe path under %USERPROFILE%\Documents.
+// Kept for reference and local development only.
+
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:sqlite3/sqlite3.dart';

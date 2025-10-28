@@ -83,6 +83,20 @@ tools/
 ├── init_db.dart                 # Inicializar database
 ├── sync_db.dart                 # Sincronização manual de DB
 └── populate_users.dart          # Popular users de teste
+
+## 🧱 Arquitetura (MVVM)
+
+O projeto utiliza MVVM com `provider`:
+
+- ViewModels em `lib/viewmodels/` expõem estado e ações:
+   - `BaseViewModel` — estado base (loading, error)
+   - `LoginViewModel` — autenticação e criação de conta
+   - `DashboardViewModel` — carregamento/filtragem de incidentes e badge de notificações
+   - `TecnicosViewModel` — CRUD de técnicos e pesquisa
+   - `FormIncidenteViewModel` — carregamento de técnicos e submissão de incidentes
+   - `PerfilViewModel` — placeholder para futuras ações de perfil
+- As Views (widgets em `lib/screens/`) consomem via `context.watch()`/`read()`.
+- `main.dart` envolve o app com `MultiProvider` para registrar os ViewModels.
 ```
 
 ## 📦 Instalação e Configuração
@@ -198,17 +212,21 @@ Nota: Na primeira execução, a base de dados é criada vazia e é gerado apenas
 
 Principais scripts disponíveis em `tools/`:
 
+> Importante:
+> - Scripts de migração estão DEPRECATED e não devem ser executados. A aplicação cria/assegura o schema automaticamente.
+> - `init_db.dart` e `populate_users.dart` são scripts de desenvolvimento (DEV‑only) e assumem caminhos legados (ex.: OneDrive). Prefira inicializar através da aplicação, que resolve `%USERPROFILE%\\Documents` de forma segura.
+
 ```bash
 # Resetar database (v2.1.0 - remove todos os dados)
 dart run tools/reset_clean.dart
 
-# Inicializar database vazia
+# Inicializar database vazia (DEV‑only; legado)
 dart run tools/init_db.dart
 
 # Sincronizar DB manualmente (opcional)
 dart run tools/sync_db.dart
 
-# Popular com dados de teste
+# Popular com dados de teste (DEV‑only; legado)
 dart run tools/populate_users.dart
 ```
 
@@ -266,6 +284,11 @@ flutter build windows --debug
 - **Dependencies**: 100% atualizadas (sem outdated packages)
 
 ## 🔄 Atualizações Recentes (Outubro 2025)
+
+### v2.1.1 - MVVM rollout (October 28, 2025)
+- ✅ Adoção de MVVM com Provider nas telas: Login, Dashboard, Técnicos e Formulário de Incidente
+- ✅ Providers globais registados em `main.dart`
+- ✅ Documentação e scripts alinhados: scripts de migração permanecem DEPRECATED; tools de DEV marcadas como tal
 
 ### v2.1.0 - Final Cleanup & Audit (October 21, 2025)
 - ✅ Complete project audit (33 files verified)
@@ -332,6 +355,6 @@ Este projeto está sob licença proprietária. Todos os direitos reservados.
 
 ---
 
-**Status do Projeto**: ✅ Production | 🔒 Hardened | 📦 v2.1.0 | 🏆 91/100 Security Score
+**Status do Projeto**: ✅ Production | 🔒 Hardened | 📦 v2.1.1 | 🏆 91/100 Security Score
 
-*Última atualização: Outubro 2025*
+*Última atualização: 28 de Outubro de 2025*

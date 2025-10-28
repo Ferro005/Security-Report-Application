@@ -1,3 +1,8 @@
+// DEPRECATED: Dev-only population script (not used by the application at runtime).
+// Uses legacy/assumed paths including OneDrive. Prefer creating users via the
+// running app and DatabaseHelper's safe Documents directory resolution.
+// Kept for reference and local development only.
+
 import 'dart:io';
 import 'dart:convert';
 import 'dart:math';
