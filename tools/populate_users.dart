@@ -11,7 +11,14 @@ import 'package:path/path.dart' as path;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:argon2/argon2.dart';
 
-void main() async {
+void main(List<String> args) async {
+  // Safety guard: deprecated dev-only script requires explicit confirmation flag
+  if (!args.contains('--i-know-what-im-doing')) {
+    stderr.writeln('This script is DEPRECATED and intended for DEV-ONLY use.');
+    stderr.writeln('Refuse to run without --i-know-what-im-doing flag.');
+    stderr.writeln('Example: dart run tools/populate_users.dart --i-know-what-im-doing');
+    exit(1);
+  }
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
@@ -79,7 +86,7 @@ void main() async {
   
   print('   ✓ Hash gerado com salt único\n');
 
-  // Create users
+  // Create users (schema aligned with current app: column `hash`)
   print('👥 Criando usuários...');
   
   final users = [
@@ -95,7 +102,7 @@ void main() async {
     await db.insert('usuarios', {
       'nome': user['nome'],
       'email': user['email'],
-      'senha': hash,
+      'hash': hash,
       'tipo': user['tipo'],
     });
     print('   ✓ ${user['nome']} (${user['tipo']}) - ${user['email']}');
@@ -133,7 +140,7 @@ void main() async {
   print('   • Técnicos: ${stats['tecnico'] ?? 0}');
   print('   • Usuários normais: ${stats['user'] ?? 0}');
   print('\n🔐 Password padrão: $password');
-  print('\n⚠️  Lembre-se de copiar esta DB para assets/db/ se necessário!');
+  // Deprecated note intentionally removed: the app manages schema/runtime DB.
 
   await db.close();
 }

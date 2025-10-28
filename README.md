@@ -43,10 +43,10 @@ Sistema completo de gestão de incidentes de segurança com autenticação Argon
 | `uuid` | 4.5.1 | Geração de IDs únicos |
 
 ### Dependency Overrides
-O projeto utiliza `dependency_overrides` para forçar versões mais recentes de dependências transitivas:
-- `pointycastle: 4.0.0` (para compatibilidade com encrypt)
-- `flutter_secure_storage_*: 2.x/4.x` (plataformas: Windows, Linux, macOS, Web)
-- Pacotes do Flutter SDK (`characters`, `meta`, `material_color_utilities`, `test_api`)
+O projeto utiliza `dependency_overrides` para fixar versões de dependências transitivas em ambientes desktop (compatibilidade com `encrypt`/SQLCipher e Flutter 3.35.x). Nota:
+- Estes overrides são voltados para Desktop; em Mobile, valide a matriz de versões do seu target.
+- Caso surjam conflitos em plataformas específicas, ajuste as constraints no `pubspec.yaml` para o alvo desejado.
+- Overrides atuais: `pointycastle: 4.0.0`, pacotes `flutter_secure_storage_*`, e pacotes base do Flutter (`characters`, `meta`, `material_color_utilities`, `test_api`).
 
 ## 🏗️ Estrutura do Projeto
 
@@ -97,6 +97,18 @@ O projeto utiliza MVVM com `provider`:
    - `PerfilViewModel` — placeholder para futuras ações de perfil
 - As Views (widgets em `lib/screens/`) consomem via `context.watch()`/`read()`.
 - `main.dart` envolve o app com `MultiProvider` para registrar os ViewModels.
+
+### Parâmetros Argon2id por plataforma (consistência)
+
+| Plataforma | Memória (m) | Iterações (t) | Paralelismo (p) |
+|-----------|--------------|---------------|------------------|
+| Desktop   | 64 MB        | 3             | 4                |
+| Android   | 32 MB        | 3             | 2                |
+| iOS       | 32 MB        | 3             | 2                |
+
+Observações:
+- O código atual utiliza `m=64MB, t=3, p=4` (ver `lib/services/auth_service.dart`).
+- Ajuste por plataforma se necessário (pode reduzir memória/paralelismo em dispositivos móveis mais modestos).
 ```
 
 ## 📦 Instalação e Configuração
