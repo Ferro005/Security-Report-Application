@@ -1,5 +1,9 @@
 # 🛡️ Security Report Application
 
+[![Flutter CI](https://github.com/Ferro005/Security-Report-Application/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/Ferro005/Security-Report-Application/actions/workflows/flutter-ci.yml)
+[![CodeQL](https://github.com/Ferro005/Security-Report-Application/actions/workflows/codeql.yml/badge.svg)](https://github.com/Ferro005/Security-Report-Application/actions/workflows/codeql.yml)
+[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-brightgreen?logo=dependabot)](https://docs.github.com/en/code-security/dependabot)
+
 Aplicação desktop standalone para gestão de incidentes de segurança desenvolvida com Flutter + SQLite.
 
 ## 📋 Sobre o Projeto
@@ -179,6 +183,7 @@ Nota: Na primeira execução, a base de dados é criada vazia e é gerado apenas
 - Access token TTL: 30 minutos
 - Refresh (reemissão automática) até 24 horas
 - Device binding: incluir `device_id` no token/claims e suportar revogação local por dispositivo (limpando secure storage/secret e invalidando sessões)
+ - Revogação local + tolerância a clock skew ≤ 60s
 
 ## 🗄️ Base de Dados
 
@@ -329,7 +334,7 @@ flutter build windows --debug
 
 **v2.1.0 - Final Release**
 - ✅ Auditoria completa de segurança
-- ✅ Migração Argon2id completa (64MB RAM, 3 iterações, 4 threads)
+- ✅ Migração Argon2id completa (64MB RAM, 3 iterações)
 - ✅ Remoção de scripts de debug (ferramentas obsoletas)
 - ✅ Schema de dados alinhado e validado
 - ✅ Documentação sincronizada
