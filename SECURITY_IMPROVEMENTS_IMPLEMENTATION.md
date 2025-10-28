@@ -285,9 +285,9 @@ changes are documented above.
 ## Deployment Notes
 
 ### Database
-- Backup database before applying migration
-- Migration is idempotent (safe to run multiple times)
-- No data loss expected
+- No migration required in v2.1.x: the application ensures/creates schema automatically at runtime
+- Optional: backup the local database as a general best practice before updating the app
+- Migration scripts are deprecated and MUST NOT be executed
 
 ### Dependencies Added
 ```yaml

@@ -166,7 +166,7 @@ Warnings: 0
 ```
 
 ### Database Status
-- ✅ Migration script executed successfully
+- ✅ Migration script executed successfully (historical note; scripts are now DEPRECATED and not required)
 - ✅ 6 test users initialized with password expiration timestamps
 - ✅ Database copied to assets for packaging
 - ✅ Backup preserved in Documents
@@ -232,7 +232,7 @@ Status: ✅ Pushed successfully
 - [x] Password reuse prevention
 - [x] Notification creation
 - [x] Audit cleanup logic
-- [x] Database migration execution
+- [x] Database migration execution (historical for this session; not required anymore)
 - [x] Build completion with 0 errors
 - [x] Git commits and push to GitHub
 
@@ -255,7 +255,7 @@ Status: ✅ Pushed successfully
 1. `lib/services/session_service.dart` - JWT session management
 2. `lib/services/password_policy_service.dart` - Password expiration & history
 3. `lib/services/notifications_service.dart` - Security notifications
-4. `tools/migrate_password_expiration.dart` - Database migration
+4. `tools/migrate_password_expiration.dart` - Database migration (DEPRECATED now)
 
 ### Modified Files (3)
 1. `lib/services/auth_service.dart` - Integrated all services
@@ -350,7 +350,7 @@ const cleanupIntervalHours = 168; // 1 week
 flutter build windows --release
 ```
 
-### Database Migration
+### Database Migration (Historical)
 Deprecated. No action required; the application manages schema automatically.
 
 ### Run Application
@@ -376,7 +376,7 @@ flutter run -d windows
 
 ✅ **Testing**
 - Manual testing of all features completed
-- Database migration tested successfully
+- Database migration tested successfully (historical; app now manages schema automatically)
 - Build successful on Windows platform
 - Git commits clean and organized
 

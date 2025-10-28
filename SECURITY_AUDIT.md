@@ -1,5 +1,7 @@
 # 🔒 Relatório de Auditoria de Segurança - FINAL v2.1.0
 
+> Nota (28/10/2025): Revisão editorial. Adoção de MVVM não altera os resultados desta auditoria. Scripts de migração permanecem DEPRECATED; o schema é gerido pela aplicação.
+
 **Security Report Application - Análise Completa de Vulnerabilidades**
 
 **Data Original**: 15 de Outubro de 2025  
