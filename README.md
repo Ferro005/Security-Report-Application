@@ -337,6 +337,8 @@ flutter build windows --debug
 - 📄 `SECURITY_IMPROVEMENTS.md` - Melhorias de segurança (estado e próximos passos)
 - 📄 `SECURITY_IMPROVEMENTS_IMPLEMENTATION.md` - Detalhes de implementação v2.1.0
 - 📄 `SESSION_COMPLETION_REPORT.md` - Resumo final da sessão
+ - 📄 `docs/security/jwt_policy.md` - Política de sessões JWT (lifetime, refresh, rotação)
+ - 📄 `docs/security/data_at_rest_sqlcipher.md` - Dados em repouso (SQLCipher/KDF, PRAGMAs)
 
 ## 🤝 Contribuindo
 

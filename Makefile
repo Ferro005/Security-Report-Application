@@ -1,4 +1,4 @@
-.PHONY: help setup analyze test format format-check clean build-windows build-linux build-macos run ci
+.PHONY: help setup analyze test coverage format format-check clean build-windows build-linux build-macos run ci
 
 help:
 	@echo "Available targets:"
@@ -22,6 +22,9 @@ analyze:
 
 test:
 	flutter test --reporter expanded
+
+coverage:
+	flutter test --coverage --reporter expanded
 
 format:
 	dart format .
